@@ -1,10 +1,23 @@
 import api from './api'
 import type { Template } from '@/types'
 
+interface TemplatesApiResponse {
+  status: string
+  message: string
+  data: {
+    summary: {
+      total_templates: number
+      templates: string[]
+    }
+    templates: Template[]
+  }
+}
+
 export const templatesService = {
   getAll: async (): Promise<Template[]> => {
-    const { data } = await api.get('/templates')
-    return data
+    const { data } = await api.get<TemplatesApiResponse>('/templates')
+    // API returns { data: { templates: [...] } }
+    return data.data?.templates || []
   },
 
   getByName: async (name: string): Promise<Template> => {

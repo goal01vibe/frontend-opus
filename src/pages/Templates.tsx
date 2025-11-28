@@ -1,10 +1,22 @@
-import { useMemo } from 'react'
-import { Puzzle, CheckCircle, BarChart3 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Puzzle, CheckCircle, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { generateMockTemplates } from '@/services/mockData'
+import { templatesService } from '@/services/templates'
 
 export function Templates() {
-  const templates = useMemo(() => generateMockTemplates().filter((t) => t.is_active), [])
+  const { data: templates = [], isLoading } = useQuery({
+    queryKey: ['templates'],
+    queryFn: templatesService.getAll,
+  })
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-gray-50">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <span className="ml-3 text-gray-500">Chargement des templates...</span>
+      </div>
+    )
+  }
 
   return (
     <div className="flex-1 overflow-auto bg-gray-50 p-6">
@@ -13,7 +25,7 @@ export function Templates() {
         <Puzzle className="w-6 h-6 text-gray-700" />
         <h2 className="text-xl font-bold text-gray-800">Templates Disponibles</h2>
         <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-          {templates.length} templates actifs
+          {templates.length} templates
         </span>
       </div>
 
@@ -68,11 +80,11 @@ export function Templates() {
                 </div>
               )}
 
-              {/* Headers */}
+              {/* Headers / Detection Rules */}
               <div className="mt-4">
-                <p className="text-xs text-gray-500 mb-2">Headers détectés:</p>
+                <p className="text-xs text-gray-500 mb-2">Règles de détection:</p>
                 <div className="flex flex-wrap gap-1">
-                  {template.detection_rules.required_headers.slice(0, 4).map((h) => (
+                  {(template.detection_rules?.required_headers || template.detection_rules?.required_text || []).slice(0, 4).map((h: string) => (
                     <span
                       key={h}
                       className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs"
@@ -80,9 +92,9 @@ export function Templates() {
                       {h}
                     </span>
                   ))}
-                  {template.detection_rules.required_headers.length > 4 && (
+                  {(template.detection_rules?.required_headers || template.detection_rules?.required_text || []).length > 4 && (
                     <span className="px-2 py-0.5 bg-gray-100 text-gray-400 rounded text-xs">
-                      +{template.detection_rules.required_headers.length - 4}
+                      +{(template.detection_rules?.required_headers || template.detection_rules?.required_text || []).length - 4}
                     </span>
                   )}
                 </div>

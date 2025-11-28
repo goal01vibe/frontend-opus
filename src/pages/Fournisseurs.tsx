@@ -1,11 +1,17 @@
 import { useMemo } from 'react'
-import { Building2, TrendingUp, FileText, Euro, ArrowUpRight } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Building2, TrendingUp, FileText, ArrowUpRight, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/utils'
-import { generateMockDocuments } from '@/services/mockData'
+import { documentsService } from '@/services/documents'
 
 export function Fournisseurs() {
-  const documents = useMemo(() => generateMockDocuments(200), [])
+  const { data: docsData, isLoading } = useQuery({
+    queryKey: ['documents-fournisseurs'],
+    queryFn: () => documentsService.getAll({ limit: 1000 }),
+  })
+
+  const documents = docsData?.items || []
 
   // Aggregate by fournisseur
   const fournisseurs = useMemo(() => {
@@ -40,6 +46,15 @@ export function Fournisseurs() {
 
   const totalGrossiste = grossistes.reduce((acc, f) => acc + f.amount, 0)
   const totalLabo = labos.reduce((acc, f) => acc + f.amount, 0)
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-gray-50">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <span className="ml-3 text-gray-500">Chargement des fournisseurs...</span>
+      </div>
+    )
+  }
 
   return (
     <div className="flex-1 overflow-auto bg-gray-50 p-6">
@@ -100,7 +115,7 @@ export function Fournisseurs() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {fournisseurs.map((f, i) => (
+            {fournisseurs.map((f) => (
               <tr key={f.name} className="hover:bg-gray-50 cursor-pointer">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">

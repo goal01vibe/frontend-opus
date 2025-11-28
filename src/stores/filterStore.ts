@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { FournisseurType, DocumentStatus, FilterState } from '@/types'
+import type { FournisseurType, FilterState } from '@/types'
 
 interface FilterStoreState {
   activeType: FournisseurType

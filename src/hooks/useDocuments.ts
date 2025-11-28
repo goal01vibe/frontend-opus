@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { documentsService } from '@/services/documents'
-import type { Document, DocumentStatus } from '@/types'
+import type { DocumentStatus } from '@/types'
 
 interface UseDocumentsParams {
   limit?: number

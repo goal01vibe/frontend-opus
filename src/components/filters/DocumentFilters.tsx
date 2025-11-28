@@ -1,7 +1,6 @@
-import { Search, Filter, Calendar, X } from 'lucide-react'
+import { Search, Calendar, X } from 'lucide-react'
 import { useFilterStore } from '@/stores/filterStore'
 import { GROSSISTES } from '@/lib/constants'
-import { cn } from '@/lib/utils'
 
 interface DocumentFiltersProps {
   fournisseurs?: string[]

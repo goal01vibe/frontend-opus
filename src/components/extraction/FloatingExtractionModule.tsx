@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Upload, ChevronDown, ChevronUp, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useExtractionStore } from '@/stores/extractionStore'

@@ -11,7 +11,6 @@ import { extractionsService } from '@/services/extractions'
 import { formatCurrency } from '@/lib/utils'
 import { Download, Plus, LayoutList, FileText, Loader2 } from 'lucide-react'
 import { useExport } from '@/hooks/useExport'
-import type { Document, Extraction } from '@/types'
 
 type ViewMode = 'documents' | 'lines'
 
@@ -103,17 +102,17 @@ export function Extractions() {
   // Export handlers
   const handleExportCSV = () => {
     if (viewMode === 'documents') {
-      exportToCSV(filteredDocuments, 'documents_export')
+      exportToCSV(filteredDocuments as unknown as Record<string, unknown>[], 'documents_export')
     } else {
-      exportToCSV(allExtractions, 'extractions_export')
+      exportToCSV(allExtractions as unknown as Record<string, unknown>[], 'extractions_export')
     }
   }
 
   const handleExportXLSX = () => {
     if (viewMode === 'documents') {
-      exportToXLSX(filteredDocuments, 'documents_export')
+      exportToXLSX(filteredDocuments as unknown as Record<string, unknown>[], 'documents_export')
     } else {
-      exportToXLSX(allExtractions, 'extractions_export')
+      exportToXLSX(allExtractions as unknown as Record<string, unknown>[], 'extractions_export')
     }
   }
 

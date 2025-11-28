@@ -1,32 +1,25 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
-import { Terminal, Pause, Play, Trash2, Download } from 'lucide-react'
+import { useState, useMemo, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Terminal, Pause, Play, Download, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { generateMockLogs } from '@/services/mockData'
+import { adminService } from '@/services/admin'
 import type { LogEntry } from '@/types'
 
 export function AdminLogs() {
-  const [logs, setLogs] = useState<LogEntry[]>([])
   const [isPaused, setIsPaused] = useState(false)
   const [levelFilter, setLevelFilter] = useState<string>('INFO')
   const [sourceFilter, setSourceFilter] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')
   const logsEndRef = useRef<HTMLDivElement>(null)
 
-  // Simulate real-time logs
-  useEffect(() => {
-    setLogs(generateMockLogs(50))
+  // Fetch real logs from API
+  const { data: logsData, isLoading, refetch } = useQuery({
+    queryKey: ['logs', levelFilter],
+    queryFn: () => adminService.getLogs('app', 100, levelFilter !== 'DEBUG' ? levelFilter : undefined),
+    refetchInterval: isPaused ? false : 5000,
+  })
 
-    if (!isPaused) {
-      const interval = setInterval(() => {
-        const newLog = generateMockLogs(1)[0]
-        newLog.id = `log-${Date.now()}`
-        newLog.timestamp = new Date().toISOString()
-        setLogs((prev) => [newLog, ...prev].slice(0, 500))
-      }, 3000)
-
-      return () => clearInterval(interval)
-    }
-  }, [isPaused])
+  const logs: LogEntry[] = logsData?.logs || []
 
   // Filter logs
   const filteredLogs = useMemo(() => {
@@ -72,7 +65,14 @@ export function AdminLogs() {
     return new Date(timestamp).toLocaleTimeString('fr-FR')
   }
 
-  const clearLogs = () => setLogs([])
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-gray-50">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <span className="ml-3 text-gray-500">Chargement des logs...</span>
+      </div>
+    )
+  }
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col bg-gray-50 p-6">
@@ -103,10 +103,11 @@ export function AdminLogs() {
             {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
           </button>
           <button
-            onClick={clearLogs}
-            className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition"
+            onClick={() => refetch()}
+            className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition"
+            title="Rafraîchir"
           >
-            <Trash2 className="w-4 h-4" />
+            <Download className="w-4 h-4" />
           </button>
           <button className="p-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">
             <Download className="w-4 h-4" />

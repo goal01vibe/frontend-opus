@@ -1,6 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { TrendingUp, Building2, Puzzle } from 'lucide-react'
-import { formatCurrency, formatFullCurrency } from '@/lib/utils'
+import { formatFullCurrency } from '@/lib/utils'
 import { CHART_COLORS } from '@/lib/constants'
 
 interface TopRankingChartProps {

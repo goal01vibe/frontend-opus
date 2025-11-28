@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { extractionsService } from '@/services/extractions'
-import type { Extraction } from '@/types'
 
 interface UseExtractionsParams {
   limit?: number
@@ -33,7 +32,7 @@ export function useExtractFile() {
       options,
     }: {
       file: File
-      options?: { template_name?: string; min_confidence?: number }
+      options?: { template?: string; template_json?: string }
     }) => extractionsService.extractFile(file, options),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documents'] })
@@ -43,19 +42,14 @@ export function useExtractFile() {
 }
 
 export function useExtractBatch() {
-  const queryClient = useQueryClient()
-
   return useMutation({
     mutationFn: ({
       files,
       options,
     }: {
       files: File[]
-      options?: { template_name?: string; min_confidence?: number }
+      options?: { template?: string }
     }) => extractionsService.extractBatch(files, options),
-    onSuccess: () => {
-      // Will invalidate after SSE completion
-    },
   })
 }
 

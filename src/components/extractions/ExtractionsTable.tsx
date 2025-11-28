@@ -274,7 +274,7 @@ export function ExtractionsTable({ data, extractions = [], viewMode = 'documents
         accessorKey: 'confidence_score',
         header: 'Score',
         size: 80,
-        cell: ({ getValue }) => <ConfidenceBadge score={getValue() as number} size="sm" />,
+        cell: ({ getValue }) => <ConfidenceBadge score={getValue() as number} />,
       },
     ],
     []
@@ -329,7 +329,7 @@ export function ExtractionsTable({ data, extractions = [], viewMode = 'documents
                 >
                   {header.isPlaceholder
                     ? null
-                    : flexRender(header.column.columnDef.header, header.getContext())}
+                    : flexRender(header.column.columnDef.header as string, header.getContext() as never)}
                 </th>
               ))}
             </tr>
@@ -359,7 +359,7 @@ export function ExtractionsTable({ data, extractions = [], viewMode = 'documents
               >
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id} className="py-3 px-4 text-sm text-gray-600">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    {flexRender(cell.column.columnDef.cell as string, cell.getContext() as never)}
                   </td>
                 ))}
               </tr>

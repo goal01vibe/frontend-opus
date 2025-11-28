@@ -1,11 +1,16 @@
 import { useMemo } from 'react'
-import { Server, Play, Pause, RotateCcw, Clock, CheckCircle, XCircle } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Server, Play, Pause, RotateCcw, Clock, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { generateMockWorkers } from '@/services/mockData'
+import { adminService } from '@/services/admin'
 import type { CeleryWorker } from '@/types'
 
 export function AdminWorkers() {
-  const workers = useMemo(() => generateMockWorkers(), [])
+  const { data: workers = [], isLoading, refetch } = useQuery({
+    queryKey: ['workers'],
+    queryFn: adminService.getWorkers,
+    refetchInterval: 5000,
+  })
 
   const getStatusColor = (status: CeleryWorker['status']) => {
     switch (status) {
@@ -47,6 +52,15 @@ export function AdminWorkers() {
     return { online, busy, offline, totalProcessed, totalFailed }
   }, [workers])
 
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-gray-50">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <span className="ml-3 text-gray-500">Chargement des workers...</span>
+      </div>
+    )
+  }
+
   return (
     <div className="flex-1 overflow-auto bg-gray-50 p-6">
       {/* Header */}
@@ -55,7 +69,10 @@ export function AdminWorkers() {
           <Server className="w-6 h-6 text-gray-700" />
           <h2 className="text-xl font-bold text-gray-800">Workers Celery</h2>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+        <button
+          onClick={() => refetch()}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+        >
           <RotateCcw className="w-4 h-4" />
           Rafraîchir
         </button>

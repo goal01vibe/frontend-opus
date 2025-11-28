@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/utils'
-import { FileText, CheckCircle, Clock, Euro, TrendingUp, AlertTriangle } from 'lucide-react'
+import { FileText, CheckCircle, Clock, Euro } from 'lucide-react'
 import type { DashboardData } from '@/types'
 
 interface KPICardsProps {

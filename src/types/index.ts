@@ -96,9 +96,10 @@ export interface Template {
   version: string
   description: string
   column_count: number
-  is_active: boolean
+  is_active?: boolean
   detection_rules: {
-    required_headers: string[]
+    required_headers?: string[]
+    required_text?: string[]
     header_patterns?: string[]
     column_count?: number
     confidence_weights?: Record<string, number>

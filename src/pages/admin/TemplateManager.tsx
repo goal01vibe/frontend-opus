@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Puzzle,
   Plus,
@@ -10,25 +10,48 @@ import {
   Pause,
   Play,
   Trash2,
-  CheckCircle,
-  XCircle,
+  Loader2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { generateMockTemplates } from '@/services/mockData'
-import type { Template } from '@/types'
+import { templatesService } from '@/services/templates'
 
 export function AdminTemplateManager() {
-  const [templates, setTemplates] = useState(() => generateMockTemplates())
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
+  const queryClient = useQueryClient()
 
-  const toggleActive = (name: string) => {
-    setTemplates((prev) =>
-      prev.map((t) => (t.name === name ? { ...t, is_active: !t.is_active } : t))
-    )
+  const { data: templates = [], isLoading } = useQuery({
+    queryKey: ['templates'],
+    queryFn: templatesService.getAll,
+  })
+
+  const activateMutation = useMutation({
+    mutationFn: (name: string) => templatesService.activate(name),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['templates'] }),
+  })
+
+  const deactivateMutation = useMutation({
+    mutationFn: (name: string) => templatesService.deactivate(name),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['templates'] }),
+  })
+
+  const toggleActive = (name: string, isActive: boolean) => {
+    if (isActive) {
+      deactivateMutation.mutate(name)
+    } else {
+      activateMutation.mutate(name)
+    }
   }
 
   const activeCount = templates.filter((t) => t.is_active).length
-  const inactiveCount = templates.filter((t) => !t.is_active).length
+  const inactiveCount = templates.length - activeCount
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-gray-50">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <span className="ml-3 text-gray-500">Chargement des templates...</span>
+      </div>
+    )
+  }
 
   return (
     <div className="flex-1 overflow-auto bg-gray-50 p-6">
@@ -129,7 +152,7 @@ export function AdminTemplateManager() {
               <div className="mb-4">
                 <p className="text-xs text-gray-500 mb-2">Headers requis:</p>
                 <div className="flex flex-wrap gap-2">
-                  {template.detection_rules.required_headers.map((h) => (
+                  {(template.detection_rules.required_headers || []).map((h) => (
                     <span
                       key={h}
                       className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs font-mono"
@@ -160,7 +183,7 @@ export function AdminTemplateManager() {
                 </button>
                 <div className="flex-1" />
                 <button
-                  onClick={() => toggleActive(template.name)}
+                  onClick={() => toggleActive(template.name, template.is_active || false)}
                   className={cn(
                     'flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition text-sm',
                     template.is_active

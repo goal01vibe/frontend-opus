@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { extractionsService } from '@/services/extractions'
 import type { BatchTask } from '@/types'
 import { API_URL } from '@/lib/constants'
 
@@ -62,7 +61,7 @@ export function useBatchProgress(batchId: string | null, options: UseBatchProgre
       }
     })
 
-    eventSource.addEventListener('batch_complete', (e) => {
+    eventSource.addEventListener('batch_complete', () => {
       setIsComplete(true)
       options.onComplete?.(tasks)
       eventSource.close()

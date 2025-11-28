@@ -28,8 +28,9 @@ export function useExport() {
     const ws = XLSX.utils.json_to_sheet(exportData)
 
     // Auto-width columns
-    const colWidths = Object.keys(exportData[0] || {}).map((key) => ({
-      wch: Math.max(key.length, ...exportData.map((r) => String(r[key] || '').length)),
+    const firstRow = exportData[0] as Record<string, unknown> | undefined
+    const colWidths = Object.keys(firstRow || {}).map((key) => ({
+      wch: Math.max(key.length, ...exportData.map((r) => String((r as Record<string, unknown>)[key] || '').length)),
     }))
     ws['!cols'] = colWidths
 
