@@ -8,17 +8,40 @@ interface DocumentsParams {
   status?: string
   categorie_fournisseur?: string
   search?: string
+  template?: string
+}
+
+interface DocumentsApiResponse {
+  count: number
+  documents: Document[]
 }
 
 export const documentsService = {
   getAll: async (params: DocumentsParams = {}): Promise<PaginatedResponse<Document>> => {
-    const { data } = await api.get('/documents', { params })
-    return data
+    const { data } = await api.get<DocumentsApiResponse>('/documents', { params })
+    // Transform API response to our format
+    return {
+      items: data.documents || [],
+      total: data.count || 0,
+      page: 1,
+      limit: params.limit || 50,
+      pages: Math.ceil((data.count || 0) / (params.limit || 50))
+    }
   },
 
   getById: async (id: number): Promise<Document> => {
-    const { data } = await api.get(`/documents/${id}`)
-    return data
+    // Get document from list (API doesn't have single document endpoint)
+    const { data } = await api.get<DocumentsApiResponse>('/documents', {
+      params: { limit: 1000 }
+    })
+    const doc = data.documents?.find(d => d.id === id)
+    if (!doc) throw new Error('Document not found')
+    return doc
+  },
+
+  getPdfUrl: (id: number): string => {
+    // Return direct URL for PDF viewing
+    return `${api.defaults.baseURL}/documents/${id}/pdf`
   },
 
   getPdf: async (id: number): Promise<Blob> => {
@@ -46,10 +69,10 @@ export const documentsService = {
   },
 
   search: async (query: string): Promise<Document[]> => {
-    const { data } = await api.get('/documents', {
-      params: { search: query, limit: 10 }
+    const { data } = await api.get<DocumentsApiResponse>('/documents', {
+      params: { search: query, limit: 50 }
     })
-    return data.items || data
+    return data.documents || []
   },
 }
 

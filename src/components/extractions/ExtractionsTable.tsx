@@ -9,35 +9,61 @@ import {
   type SortingState,
 } from '@tanstack/react-table'
 import { cn } from '@/lib/utils'
-import { formatFullCurrency, formatDate } from '@/lib/utils'
+import { formatFullCurrency, formatDate, formatCurrency } from '@/lib/utils'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { ConfidenceBadge } from '@/components/common/ConfidenceBadge'
 import { useUIStore } from '@/stores/uiStore'
-import type { Document } from '@/types'
-import { ArrowUpDown, ChevronDown, ChevronUp } from 'lucide-react'
+import type { Document, Extraction } from '@/types'
+import { ArrowUpDown, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
 
 interface ExtractionsTableProps {
   data: Document[]
+  extractions?: Extraction[]
+  viewMode?: 'documents' | 'lines'
   isLoading?: boolean
 }
 
-export function ExtractionsTable({ data, isLoading }: ExtractionsTableProps) {
+export function ExtractionsTable({ data, extractions = [], viewMode = 'documents', isLoading }: ExtractionsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([])
   const { openDrawer, selectedId } = useUIStore()
 
-  // Group documents by ID for alternating colors
+  // For documents view: group by document ID
   const documentGroups = useMemo(() => {
     const groups = new Set<number>()
     data.forEach((doc) => groups.add(doc.id))
     return Array.from(groups)
   }, [data])
 
-  const getRowColor = (documentId: number): string => {
-    const groupIndex = documentGroups.indexOf(documentId)
+  // For lines view: group extractions by document_id with alternating colors
+  const extractionGroups = useMemo(() => {
+    if (viewMode !== 'lines' || extractions.length === 0) return new Map<number, number>()
+
+    const groups = new Map<number, number>()
+    let colorIndex = 0
+    let prevDocId: number | null = null
+
+    extractions.forEach((ext) => {
+      if (ext.document_id !== prevDocId) {
+        colorIndex = prevDocId !== null ? (colorIndex + 1) % 2 : 0
+        prevDocId = ext.document_id
+      }
+      groups.set(ext.id, colorIndex)
+    })
+
+    return groups
+  }, [extractions, viewMode])
+
+  const getRowColor = (id: number, isExtraction: boolean = false): string => {
+    if (isExtraction) {
+      const colorIndex = extractionGroups.get(id) ?? 0
+      return colorIndex === 0 ? 'bg-slate-50' : 'bg-slate-100'
+    }
+    const groupIndex = documentGroups.indexOf(id)
     return groupIndex % 2 === 0 ? 'bg-slate-50' : 'bg-slate-100'
   }
 
-  const columns: ColumnDef<Document>[] = useMemo(
+  // Document columns
+  const documentColumns: ColumnDef<Document>[] = useMemo(
     () => [
       {
         accessorKey: 'status',
@@ -52,7 +78,7 @@ export function ExtractionsTable({ data, isLoading }: ExtractionsTableProps) {
             className="flex items-center gap-1"
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
           >
-            Date
+            Date facture
             {column.getIsSorted() === 'asc' ? (
               <ChevronUp className="w-4 h-4" />
             ) : column.getIsSorted() === 'desc' ? (
@@ -84,14 +110,43 @@ export function ExtractionsTable({ data, isLoading }: ExtractionsTableProps) {
         ),
       },
       {
-        accessorKey: 'template_used',
-        header: 'Template',
-        size: 100,
-        cell: ({ getValue }) => (
-          <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-            {getValue() as string}
-          </span>
+        accessorKey: 'date_echeance',
+        header: ({ column }) => (
+          <button
+            className="flex items-center gap-1"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Échéance
+            {column.getIsSorted() === 'asc' ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : column.getIsSorted() === 'desc' ? (
+              <ChevronDown className="w-4 h-4" />
+            ) : (
+              <ArrowUpDown className="w-4 h-4 text-gray-400" />
+            )}
+          </button>
         ),
+        size: 100,
+        cell: ({ row }) => {
+          const dateStr = row.original.date_echeance
+          if (!dateStr) return <span className="text-gray-400">-</span>
+
+          const echeance = new Date(dateStr)
+          const today = new Date()
+          const isOverdue = echeance < today
+          const isNearDue = !isOverdue && echeance.getTime() - today.getTime() < 7 * 24 * 60 * 60 * 1000
+
+          return (
+            <span className={cn(
+              'flex items-center gap-1',
+              isOverdue && 'text-red-600 font-medium',
+              isNearDue && 'text-orange-600'
+            )}>
+              {isOverdue && <AlertTriangle className="w-3 h-3" />}
+              {formatDate(dateStr)}
+            </span>
+          )
+        },
       },
       {
         accessorKey: 'net_a_payer',
@@ -120,22 +175,133 @@ export function ExtractionsTable({ data, isLoading }: ExtractionsTableProps) {
       {
         accessorKey: 'confidence_score',
         header: 'Confiance',
-        size: 130,
+        size: 100,
         cell: ({ getValue }) => <ConfidenceBadge score={getValue() as number} />,
       },
     ],
     []
   )
 
-  const table = useReactTable({
+  // Extraction lines columns
+  const extractionColumns: ColumnDef<Extraction>[] = useMemo(
+    () => [
+      {
+        accessorKey: 'document_id',
+        header: 'Doc #',
+        size: 60,
+        cell: ({ getValue }) => (
+          <span className="text-xs font-mono text-gray-500">#{getValue() as number}</span>
+        ),
+      },
+      {
+        accessorKey: 'code_article',
+        header: 'Code article',
+        size: 120,
+        cell: ({ getValue }) => (
+          <span className="font-mono text-sm">{getValue() as string || '-'}</span>
+        ),
+      },
+      {
+        accessorKey: 'designation_article',
+        header: 'Désignation',
+        size: 250,
+        cell: ({ getValue }) => (
+          <span className="truncate block max-w-[250px]" title={getValue() as string}>
+            {getValue() as string}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'quantite',
+        header: 'Qté',
+        size: 70,
+        cell: ({ getValue }) => (
+          <span className="text-center block">{getValue() as number}</span>
+        ),
+      },
+      {
+        accessorKey: 'prix_unitaire_ht',
+        header: 'P.U. HT',
+        size: 90,
+        cell: ({ getValue }) => (
+          <span className="text-right block">{formatCurrency(getValue() as number)}</span>
+        ),
+      },
+      {
+        accessorKey: 'taux_tva',
+        header: 'TVA %',
+        size: 70,
+        cell: ({ getValue }) => {
+          const taux = getValue() as number
+          return (
+            <span className={cn(
+              'text-xs px-1.5 py-0.5 rounded text-center block',
+              taux === 2.1 && 'bg-green-100 text-green-700',
+              taux === 5.5 && 'bg-blue-100 text-blue-700',
+              taux === 10 && 'bg-yellow-100 text-yellow-700',
+              taux === 20 && 'bg-red-100 text-red-700'
+            )}>
+              {taux}%
+            </span>
+          )
+        },
+      },
+      {
+        accessorKey: 'montant_ligne_ht',
+        header: ({ column }) => (
+          <button
+            className="flex items-center gap-1 ml-auto"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Montant HT
+            {column.getIsSorted() === 'asc' ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : column.getIsSorted() === 'desc' ? (
+              <ChevronDown className="w-4 h-4" />
+            ) : (
+              <ArrowUpDown className="w-4 h-4 text-gray-400" />
+            )}
+          </button>
+        ),
+        size: 110,
+        cell: ({ getValue }) => (
+          <span className="font-bold text-gray-800 text-right block">
+            {formatCurrency(getValue() as number)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'confidence_score',
+        header: 'Score',
+        size: 80,
+        cell: ({ getValue }) => <ConfidenceBadge score={getValue() as number} size="sm" />,
+      },
+    ],
+    []
+  )
+
+  const documentsTable = useReactTable({
     data,
-    columns,
+    columns: documentColumns,
     state: { sorting },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
   })
+
+  const extractionsTable = useReactTable({
+    data: extractions,
+    columns: extractionColumns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+  })
+
+  const table = viewMode === 'documents' ? documentsTable : extractionsTable
+  const displayData = viewMode === 'documents' ? data : extractions
 
   if (isLoading) {
     return (
@@ -170,31 +336,40 @@ export function ExtractionsTable({ data, isLoading }: ExtractionsTableProps) {
           ))}
         </thead>
         <tbody className="divide-y divide-gray-200">
-          {table.getRowModel().rows.map((row) => (
-            <tr
-              key={row.id}
-              onClick={() => openDrawer(row.original.id)}
-              className={cn(
-                'cursor-pointer transition-colors duration-150 border-l-4',
-                getRowColor(row.original.id),
-                'hover:bg-blue-50',
-                selectedId === row.original.id
-                  ? 'bg-blue-50 border-blue-500'
-                  : 'border-transparent'
-              )}
-            >
-              {row.getVisibleCells().map((cell) => (
-                <td key={cell.id} className="py-3 px-4 text-sm text-gray-600">
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {table.getRowModel().rows.map((row) => {
+            const rowId = viewMode === 'documents'
+              ? (row.original as Document).id
+              : (row.original as Extraction).id
+            const docId = viewMode === 'documents'
+              ? (row.original as Document).id
+              : (row.original as Extraction).document_id
+
+            return (
+              <tr
+                key={row.id}
+                onClick={() => openDrawer(docId)}
+                className={cn(
+                  'cursor-pointer transition-colors duration-150 border-l-4',
+                  getRowColor(rowId, viewMode === 'lines'),
+                  'hover:bg-blue-50',
+                  selectedId === docId
+                    ? 'bg-blue-50 border-blue-500'
+                    : 'border-transparent'
+                )}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id} className="py-3 px-4 text-sm text-gray-600">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            )
+          })}
         </tbody>
       </table>
-      {data.length === 0 && (
+      {displayData.length === 0 && (
         <div className="p-12 text-center text-gray-500">
-          <p>Aucune extraction trouvée</p>
+          <p>Aucune donnée trouvée</p>
         </div>
       )}
     </div>
