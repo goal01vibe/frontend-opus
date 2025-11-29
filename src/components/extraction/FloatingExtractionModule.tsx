@@ -1,4 +1,4 @@
-import { Upload, ChevronDown, ChevronUp, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react'
+import { Upload, ChevronDown, ChevronUp, CheckCircle, XCircle, AlertTriangle, Clock, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useExtractionStore } from '@/stores/extractionStore'
 import { BatchProgressCard } from './BatchProgressCard'
@@ -7,9 +7,11 @@ export function FloatingExtractionModule() {
   const {
     isModuleExpanded,
     toggleModule,
+    openUploadModal,
     activeBatches,
     completedToday,
     failedToday,
+    partialToday,
   } = useExtractionStore()
 
   const activeCount = activeBatches.length
@@ -62,7 +64,10 @@ export function FloatingExtractionModule() {
               <div className="p-6 text-center text-gray-500">
                 <Clock className="w-10 h-10 mx-auto mb-2 text-gray-300" />
                 <p className="text-sm">Aucune extraction en cours</p>
-                <button className="mt-3 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+                <button
+                  onClick={openUploadModal}
+                  className="mt-3 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                >
                   + Nouvelle extraction
                 </button>
               </div>
@@ -80,11 +85,15 @@ export function FloatingExtractionModule() {
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">Aujourd'hui:</span>
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1.5 text-green-600">
+                <div className="flex items-center gap-1.5 text-green-600" title="Extractions complètes">
                   <CheckCircle className="w-4 h-4" />
                   <span className="font-semibold">{completedToday}</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-red-500">
+                <div className="flex items-center gap-1.5 text-amber-500" title="Extractions partielles (en attente)">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span className="font-semibold">{partialToday}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-red-500" title="Extractions échouées">
                   <XCircle className="w-4 h-4" />
                   <span className="font-semibold">{failedToday}</span>
                 </div>

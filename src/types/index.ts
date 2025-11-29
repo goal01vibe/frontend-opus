@@ -226,3 +226,67 @@ export interface ExtractResponse {
   }
   alerts: Alert[]
 }
+
+// Extraction Error Types
+export type ExtractionErrorCode =
+  | 'ERROR_CORRUPT'
+  | 'ERROR_ENCRYPTED'
+  | 'ERROR_SCANNED'
+  | 'ERROR_TOO_LARGE'
+  | 'WARNING_NO_TEMPLATE'
+  | 'WARNING_PARTIAL'
+  | 'ERROR_NETWORK'
+  | 'ERROR_UNKNOWN'
+
+export interface ExtractionError {
+  code: ExtractionErrorCode
+  message: string
+  recoverable: boolean
+  suggestion?: string
+}
+
+// File Status for upload tracking
+export type FileUploadStatus = 'pending' | 'validating' | 'uploading' | 'processing' | 'complete' | 'failed' | 'partial'
+
+export interface FileStatus {
+  id: string
+  file: File
+  filename: string
+  size: number
+  status: FileUploadStatus
+  progress: number
+  error?: ExtractionError
+  documentId?: number
+  redisKey?: string
+  startedAt?: string
+  completedAt?: string
+}
+
+// Batch Result
+export interface BatchResult {
+  batch_id: string
+  total: number
+  completed: number
+  failed: number
+  partial: number
+  files: FileResult[]
+}
+
+export interface FileResult {
+  file_id: string
+  filename: string
+  status: 'complete' | 'failed' | 'partial'
+  document_id?: number
+  redis_key?: string
+  error?: ExtractionError
+}
+
+// Live Metrics
+export interface LiveMetrics {
+  docsPerSecond: number
+  successRate: number
+  estimatedTimeRemaining: number
+  activeWorkers: number
+  totalProcessed: number
+  totalFailed: number
+}
