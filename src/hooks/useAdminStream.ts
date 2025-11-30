@@ -36,6 +36,9 @@ export interface BatchProgressEvent {
   confidence_score?: number
   processing_time_ms?: number
   error?: string
+  error_type?: string
+  message?: string
+  document_id?: number
   type: 'file_start' | 'file_complete' | 'file_warning' | 'file_error' | 'batch_complete'
 }
 

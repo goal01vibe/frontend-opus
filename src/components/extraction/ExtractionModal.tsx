@@ -1,11 +1,10 @@
-import { useCallback, useState, useMemo, useRef } from 'react'
+import { useCallback, useState, useMemo, useEffect, useRef } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { X, Upload, FileText, Loader2, AlertTriangle, CheckCircle, XCircle, RotateCcw, Trash2, Wifi, WifiOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useExtractionStore } from '@/stores/extractionStore'
 import { extractionsService } from '@/services/extractions'
-import { ReconnectingEventSource, type ConnectionState } from '@/lib/reconnecting-event-source'
-import { API_URL } from '@/lib/constants'
+import { useAdminStream, type BatchProgressEvent } from '@/hooks/useAdminStream'
 import { ErrorBadge } from './ErrorDisplay'
 import { ProgressSummary } from './LiveMetrics'
 import type { FileStatus, ExtractionErrorCode } from '@/types'
@@ -21,8 +20,86 @@ export function ExtractionModal() {
   const [files, setFiles] = useState<LocalFileStatus[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [confidence, setConfidence] = useState(60)
-  const [connectionState, setConnectionState] = useState<ConnectionState>('closed')
-  const eventSourceRef = useRef<ReconnectingEventSource | null>(null)
+  const currentBatchIdRef = useRef<string | null>(null)
+
+  // Utiliser le stream admin global (connexion permanente)
+  const { isConnected, onBatchProgress } = useAdminStream({
+    onBatchProgress: useCallback((data: BatchProgressEvent) => {
+      // Ne traiter que les événements du batch actuel
+      if (!currentBatchIdRef.current || data.batch_id !== currentBatchIdRef.current) {
+        return
+      }
+
+      switch (data.type) {
+        case 'file_start':
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.filename === data.filename
+                ? { ...f, status: 'processing' as const, progress: 50 }
+                : f
+            )
+          )
+          break
+
+        case 'file_complete':
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.filename === data.filename
+                ? { ...f, status: 'complete' as const, progress: 100, documentId: data.document_id }
+                : f
+            )
+          )
+          incrementCompleted()
+          break
+
+        case 'file_warning':
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.filename === data.filename
+                ? {
+                    ...f,
+                    status: 'partial' as const,
+                    progress: 100,
+                    documentId: data.document_id,
+                    error: {
+                      code: 'WARNING_PARTIAL' as const,
+                      message: data.message || 'Extraction nécessite vérification',
+                      recoverable: true,
+                    },
+                  }
+                : f
+            )
+          )
+          incrementPartial()
+          break
+
+        case 'file_error':
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.filename === data.filename
+                ? {
+                    ...f,
+                    status: 'failed' as const,
+                    error: {
+                      code: (data.error_type || 'ERROR_UNKNOWN') as ExtractionErrorCode,
+                      message: data.error || 'Erreur inconnue',
+                      recoverable: true,
+                    },
+                  }
+                : f
+            )
+          )
+          incrementFailed()
+          break
+
+        case 'batch_complete':
+          console.log('Batch terminé:', data)
+          currentBatchIdRef.current = null
+          setIsUploading(false)
+          break
+      }
+    }, [incrementCompleted, incrementFailed, incrementPartial]),
+  })
 
   const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: any[]) => {
     // Process accepted files
@@ -110,11 +187,7 @@ export function ExtractionModal() {
 
   // Cleanup on modal close
   const handleClose = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close()
-      eventSourceRef.current = null
-    }
-    setConnectionState('closed')
+    currentBatchIdRef.current = null
     closeUploadModal()
   }, [closeUploadModal])
 
@@ -136,6 +209,9 @@ export function ExtractionModal() {
         template: undefined, // Auto-detect
       })
 
+      // Stocker le batch_id pour filtrer les événements SSE
+      currentBatchIdRef.current = result.batch_id
+
       // Create batch in store
       addBatch({
         batch_id: result.batch_id,
@@ -151,132 +227,9 @@ export function ExtractionModal() {
         prev.map((f) => (f.status === 'uploading' ? { ...f, status: 'processing' as const } : f))
       )
 
-      // Close previous EventSource if exists
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close()
-      }
+      // Les événements SSE seront reçus via useAdminStream (connexion permanente)
+      console.log('Batch lancé:', result.batch_id, '- En attente des événements SSE...')
 
-      // Start SSE with reconnection support
-      const eventSource = new ReconnectingEventSource(
-        `${API_URL}/extract-batch-worker/${result.batch_id}/stream`,
-        {
-          maxRetries: 5,
-          initialRetryDelay: 1000,
-          maxRetryDelay: 10000,
-          onStateChange: setConnectionState,
-          onMaxRetriesReached: () => {
-            setFiles((prev) =>
-              prev.map((f) =>
-                f.status === 'processing'
-                  ? {
-                      ...f,
-                      status: 'failed' as const,
-                      error: {
-                        code: 'ERROR_NETWORK' as const,
-                        message: 'Connexion perdue - réessayez',
-                        recoverable: true,
-                      },
-                    }
-                  : f
-              )
-            )
-            setIsUploading(false)
-          },
-        }
-      )
-      eventSourceRef.current = eventSource
-
-      // Événement de connexion établie
-      eventSource.addEventListener('connected', () => {
-        console.log('SSE connecté pour batch', result.batch_id)
-      })
-
-      // Événement de début de traitement d'un fichier
-      eventSource.addEventListener('file_start', (e) => {
-        const data = JSON.parse(e.data)
-        setFiles((prev) =>
-          prev.map((f) =>
-            f.filename === data.filename
-              ? { ...f, status: 'processing' as const, progress: 50 }
-              : f
-          )
-        )
-      })
-
-      // Événement de succès d'un fichier
-      eventSource.addEventListener('file_complete', (e) => {
-        const data = JSON.parse(e.data)
-        setFiles((prev) =>
-          prev.map((f) =>
-            f.filename === data.filename
-              ? { ...f, status: 'complete' as const, progress: 100, documentId: data.document_id }
-              : f
-          )
-        )
-        incrementCompleted()
-      })
-
-      // Événement d'avertissement (NEEDS_REVIEW)
-      eventSource.addEventListener('file_warning', (e) => {
-        const data = JSON.parse(e.data)
-        setFiles((prev) =>
-          prev.map((f) =>
-            f.filename === data.filename
-              ? {
-                  ...f,
-                  status: 'partial' as const,
-                  progress: 100,
-                  documentId: data.document_id,
-                  error: {
-                    code: 'WARNING_PARTIAL' as const,
-                    message: data.message || 'Extraction nécessite vérification',
-                    recoverable: true,
-                  },
-                }
-              : f
-          )
-        )
-        incrementPartial()
-      })
-
-      // Événement d'erreur d'un fichier
-      eventSource.addEventListener('file_error', (e) => {
-        try {
-          const data = JSON.parse((e as MessageEvent).data)
-          setFiles((prev) =>
-            prev.map((f) =>
-              f.filename === data.filename
-                ? {
-                    ...f,
-                    status: 'failed' as const,
-                    error: {
-                      code: data.error_type || 'ERROR_UNKNOWN',
-                      message: data.error || 'Erreur inconnue',
-                      recoverable: true,
-                    },
-                  }
-                : f
-            )
-          )
-          incrementFailed()
-        } catch {
-          // Connection error, not file error - handled by ReconnectingEventSource
-        }
-      })
-
-      // Événement de fin de batch
-      eventSource.addEventListener('batch_complete', (e) => {
-        try {
-          const data = JSON.parse((e as MessageEvent).data)
-          console.log('Batch terminé:', data)
-        } catch {
-          // Ignore parse errors
-        }
-        eventSource.close()
-        eventSourceRef.current = null
-        setConnectionState('closed')
-        setIsUploading(false)
-      })
     } catch (error) {
       // Mark all uploading files as failed
       setFiles((prev) =>
@@ -295,6 +248,7 @@ export function ExtractionModal() {
         )
       )
       setIsUploading(false)
+      currentBatchIdRef.current = null
     }
   }
 
@@ -333,30 +287,23 @@ export function ExtractionModal() {
           <div className="flex items-center gap-3">
             <Upload className="w-6 h-6" />
             <h2 className="text-xl font-semibold">Nouvelle extraction</h2>
-            {/* Connection indicator */}
-            {isUploading && (
-              <div className={cn(
-                'flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium',
-                connectionState === 'connected' && 'bg-green-500/20 text-green-100',
-                connectionState === 'connecting' && 'bg-yellow-500/20 text-yellow-100',
-                connectionState === 'reconnecting' && 'bg-orange-500/20 text-orange-100',
-                connectionState === 'failed' && 'bg-red-500/20 text-red-100'
-              )}>
-                {connectionState === 'connected' ? (
+            {/* Connection indicator - toujours visible */}
+            <div className={cn(
+              'flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium',
+              isConnected ? 'bg-green-500/20 text-green-100' : 'bg-red-500/20 text-red-100'
+            )}>
+              {isConnected ? (
+                <>
                   <Wifi className="w-3 h-3" />
-                ) : connectionState === 'reconnecting' ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : connectionState === 'failed' ? (
+                  Connecté
+                </>
+              ) : (
+                <>
                   <WifiOff className="w-3 h-3" />
-                ) : (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                )}
-                {connectionState === 'connected' && 'Connecté'}
-                {connectionState === 'connecting' && 'Connexion...'}
-                {connectionState === 'reconnecting' && 'Reconnexion...'}
-                {connectionState === 'failed' && 'Déconnecté'}
-              </div>
-            )}
+                  Déconnecté
+                </>
+              )}
+            </div>
           </div>
           <button
             onClick={handleClose}
@@ -562,10 +509,10 @@ export function ExtractionModal() {
             </button>
             <button
               onClick={handleExtract}
-              disabled={pendingFiles.length === 0 || isUploading}
+              disabled={pendingFiles.length === 0 || isUploading || !isConnected}
               className={cn(
                 'px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors',
-                pendingFiles.length > 0 && !isUploading
+                pendingFiles.length > 0 && !isUploading && isConnected
                   ? 'bg-blue-600 text-white hover:bg-blue-700'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               )}
@@ -574,6 +521,11 @@ export function ExtractionModal() {
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Extraction en cours...
+                </>
+              ) : !isConnected ? (
+                <>
+                  <WifiOff className="w-4 h-4" />
+                  Reconnexion...
                 </>
               ) : (
                 <>
