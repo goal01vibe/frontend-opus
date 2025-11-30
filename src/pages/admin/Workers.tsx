@@ -47,8 +47,8 @@ export function AdminWorkers() {
     const online = workers.filter((w) => w.status === 'online').length
     const busy = workers.filter((w) => w.status === 'busy').length
     const offline = workers.filter((w) => w.status === 'offline').length
-    const totalProcessed = workers.reduce((acc, w) => acc + w.processed_total, 0)
-    const totalFailed = workers.reduce((acc, w) => acc + w.failed_total, 0)
+    const totalProcessed = workers.reduce((acc, w) => acc + (w.processed_total || 0), 0)
+    const totalFailed = workers.reduce((acc, w) => acc + (w.failed_total || 0), 0)
     return { online, busy, offline, totalProcessed, totalFailed }
   }, [workers])
 
