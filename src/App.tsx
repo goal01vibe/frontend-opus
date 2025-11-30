@@ -9,6 +9,7 @@ import { AdminLogs } from '@/pages/admin/Logs'
 import { AdminWorkers } from '@/pages/admin/Workers'
 import { AdminMetrics } from '@/pages/admin/Metrics'
 import { AdminTemplateManager } from '@/pages/admin/TemplateManager'
+import { AdminBatches } from '@/pages/admin/Batches'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
           <Route path="workers" element={<AdminWorkers />} />
           <Route path="metrics" element={<AdminMetrics />} />
           <Route path="templates" element={<AdminTemplateManager />} />
+          <Route path="batches" element={<AdminBatches />} />
         </Route>
 
         {/* Catch all - redirect to dashboard */}
