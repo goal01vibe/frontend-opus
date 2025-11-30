@@ -113,6 +113,45 @@ def _detect_scanned_pdf(self, pdf_path: str) -> Tuple[bool, Dict]:
 - `app/routers/data_router.py` - Endpoints validation/rejet
 - `app/routers/extraction_router.py` - Sauvegarde review_reasons
 
+---
+
+### 1.6 Extraction Date d'Échéance via Templates (✅ NOUVEAU 2025-11-30)
+
+**Status**: COMPLET - Implémenté
+
+**Fichiers**:
+- `app/templates/base_template.py` - Méthode `extract_metadata()` et `_parse_date()`
+- `app/templates/configs/ocp_v1.json` - Pattern `date_echeance` défini
+- `app/templates/configs/ocp_v2.json` - Pattern `date_echeance` défini
+- `app/pdf_extractor.py` - Appel `extract_metadata()` et inclusion dans résultat
+- `app/services/document_service.py` - Sauvegarde `date_echeance` en DB
+- `app/routers/extraction_router.py` - Retourne `date_echeance` dans les réponses API
+- `app/routers/data_router.py` - Inclut `date_echeance` dans `/documents`
+
+**Principe**:
+Les métadonnées (dont `date_echeance`) sont extraites via des **patterns regex définis dans chaque template JSON**.
+Pas de code en dur - chaque fournisseur peut avoir son propre pattern.
+
+**Exemple de configuration template** (`ocp_v1.json`):
+```json
+"metadata_patterns": {
+    "numero_facture": "FACTURE\\s+N[°o]\\s+([0-9]+)",
+    "date_echeance": "PAR\\s+(?:CHEQUE|AVP\\s+ECH)\\s+LE\\s+(\\d{2}/\\d{2}/\\d{4})",
+    "date_document": "Date\\s*:\\s*(\\d{2}\\.\\d{2}\\.\\d{4})"
+}
+```
+
+**Formats de date supportés**:
+- `DD/MM/YYYY` (ex: 15/12/2025)
+- `DD.MM.YYYY` (ex: 15.12.2025)
+- `DD-MM-YYYY` (ex: 15-12-2025)
+
+**Résultat testé**:
+```
+OCP v1: date_document=2023-05-13, date_echeance=2023-06-20 ✅
+OCP v2: date_document=2025-08-01, date_echeance=2025-09-10 ✅
+```
+
 **Endpoints**:
 
 | Endpoint | Méthode | Description |
@@ -315,6 +354,7 @@ def process_single_pdf_task(self, file_content, filename, template, batch_id):
 | Celery Tasks | ✅ Existe (basique) | - |
 | **Review Reasons + Validation** | ✅ **NOUVEAU** (2025-11-30) | - |
 | **Endpoints Validate/Reject** | ✅ **NOUVEAU** | - |
+| **Extraction date_echeance** | ✅ **NOUVEAU** (2025-11-30) | - |
 | **SSE Streaming** | ❌ Manque | **2-3h** |
 | **Endpoints Staging** | ❌ Manque | **1-2h** |
 | **Queue Management** | ❌ Manque | **1-2h** |
@@ -383,12 +423,16 @@ GET /admin/stats                   // Stats DB
 GET /admin/templates/quality-report
 
 // Documents et Validation (✅ NOUVEAU 2025-11-30)
-GET /documents                          // Liste avec review_reasons & confidence_score
+GET /documents                          // Liste avec review_reasons, confidence_score, date_echeance
 GET /documents?search=XXX               // Recherche full-text
 GET /documents?template=OCP_v1          // Filtre par template
 GET /documents/{id}/pdf                 // Télécharger PDF original
 PATCH /documents/{id}/validate          // Valider (efface review_reasons)
 PATCH /documents/{id}/reject?reason=X   // Rejeter (ajoute review_reasons)
+
+// Extraction avec date_echeance (✅ NOUVEAU 2025-11-30)
+POST /extract-file                      // Retourne date_echeance dans la réponse
+POST /reprocess-file                    // Retourne date_echeance dans la réponse
 ```
 
 ### Ces endpoints sont déjà utilisables dans la page Admin !

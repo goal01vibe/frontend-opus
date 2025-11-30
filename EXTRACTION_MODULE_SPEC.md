@@ -718,6 +718,8 @@ interface Document {
   confidence_score: number;  // 0-100
   review_reasons: string[];  // Liste des raisons (vide si OK)
   template_used: string | null;
+  date_document: string | null;   // Date de la facture (ISO format)
+  date_echeance: string | null;   // Date d'échéance extraite via template (ISO format)
   // ... autres champs
 }
 ```
@@ -866,6 +868,77 @@ export function ReviewReasonsBadges({ reasons }: ReviewReasonsBadgesProps) {
   );
 }
 ```
+
+---
+
+## 7bis. Extraction Métadonnées via Templates (✅ NOUVEAU 2025-11-30)
+
+### 7bis.1 Principe
+
+Les métadonnées document (date_echeance, numero_facture, etc.) sont extraites via des **patterns regex définis dans chaque template JSON**. Cela permet de supporter différents formats par fournisseur sans modifier le code.
+
+### 7bis.2 Configuration Template
+
+Chaque template JSON peut définir une section `metadata_patterns` :
+
+```json
+{
+  "name": "OCP_v2",
+  "metadata_patterns": {
+    "numero_facture": "FACTURE\\s+N[°o]\\s+([0-9]+)",
+    "date_document": "Date\\s*:\\s*(\\d{2}\\.\\d{2}\\.\\d{4})",
+    "date_echeance": "PAR\\s+(?:CHEQUE|AVP\\s+ECH)\\s+LE\\s+(\\d{2}/\\d{2}/\\d{4})",
+    "net_a_payer": "Net\\s+[àa]\\s+payer\\s+\\(EUR\\)\\s*\\n?\\s*([0-9.,]+)"
+  }
+}
+```
+
+### 7bis.3 Formats de Date Supportés
+
+Le parser de dates supporte automatiquement :
+- `DD/MM/YYYY` (ex: 15/12/2025)
+- `DD.MM.YYYY` (ex: 15.12.2025)
+- `DD-MM-YYYY` (ex: 15-12-2025)
+
+### 7bis.4 Implémentation Backend
+
+**Fichiers modifiés** :
+- `app/templates/base_template.py` - Méthodes `extract_metadata()` et `_parse_date()`
+- `app/pdf_extractor.py` - Appelle `extract_metadata()` sur le template détecté
+- `app/services/document_service.py` - Sauvegarde en DB
+- `app/routers/extraction_router.py` - Retourne dans les réponses API
+- `app/routers/data_router.py` - Inclut dans `/documents`
+
+### 7bis.5 Réponse API
+
+```json
+{
+  "message": "Extraction réussie",
+  "document_id": 10,
+  "date_document": "2025-08-01",
+  "date_echeance": "2025-09-10",
+  "template_used": "OCP_v2",
+  "numero_facture": "5408101606"
+}
+```
+
+### 7bis.6 Ajouter un Nouveau Champ Métadonnée
+
+Pour extraire un nouveau champ (ex: `reference_commande`) :
+
+1. **Ajouter le pattern au template JSON** :
+```json
+"metadata_patterns": {
+  "reference_commande": "Réf\\.?\\s+commande\\s*:\\s*([A-Z0-9-]+)"
+}
+```
+
+2. **Ajouter la colonne en DB** (si nécessaire) :
+```sql
+ALTER TABLE documents ADD COLUMN reference_commande VARCHAR(100);
+```
+
+3. **Le code Python le gère automatiquement** - pas de modification requise !
 
 ---
 
@@ -1177,6 +1250,7 @@ Les extractions avec un score de confiance inférieur au seuil configuré sont s
 | Celery Tasks basiques | ✅ **EXISTE** (`app/tasks.py`) | - |
 | **Review Reasons + Validation** | ✅ **EXISTE** (2025-11-30) | - |
 | **Endpoints Validate/Reject** | ✅ **EXISTE** (`app/routers/data_router.py`) | - |
+| **Extraction date_echeance via templates** | ✅ **EXISTE** (2025-11-30) | - |
 | **SSE Streaming** | ❌ Manque | **2-3h** |
 | **Endpoints REST Staging** | ❌ Manque | **1-2h** |
 | **Queue Management** | ❌ Manque | **1-2h** |
