@@ -186,16 +186,25 @@ export function ExtractionModal() {
       )
       eventSourceRef.current = eventSource
 
-      eventSource.addEventListener('progress', (e) => {
+      // Événement de connexion établie
+      eventSource.addEventListener('connected', () => {
+        console.log('SSE connecté pour batch', result.batch_id)
+      })
+
+      // Événement de début de traitement d'un fichier
+      eventSource.addEventListener('file_start', (e) => {
         const data = JSON.parse(e.data)
         setFiles((prev) =>
           prev.map((f) =>
-            f.filename === data.filename ? { ...f, progress: data.progress } : f
+            f.filename === data.filename
+              ? { ...f, status: 'processing' as const, progress: 50 }
+              : f
           )
         )
       })
 
-      eventSource.addEventListener('complete', (e) => {
+      // Événement de succès d'un fichier
+      eventSource.addEventListener('file_complete', (e) => {
         const data = JSON.parse(e.data)
         setFiles((prev) =>
           prev.map((f) =>
@@ -207,7 +216,8 @@ export function ExtractionModal() {
         incrementCompleted()
       })
 
-      eventSource.addEventListener('partial', (e) => {
+      // Événement d'avertissement (NEEDS_REVIEW)
+      eventSource.addEventListener('file_warning', (e) => {
         const data = JSON.parse(e.data)
         setFiles((prev) =>
           prev.map((f) =>
@@ -216,12 +226,11 @@ export function ExtractionModal() {
                   ...f,
                   status: 'partial' as const,
                   progress: 100,
-                  redisKey: data.redis_key,
+                  documentId: data.document_id,
                   error: {
                     code: 'WARNING_PARTIAL' as const,
-                    message: data.message || 'Extraction partielle - template incomplet',
+                    message: data.message || 'Extraction nécessite vérification',
                     recoverable: true,
-                    suggestion: data.suggestion,
                   },
                 }
               : f
@@ -230,7 +239,8 @@ export function ExtractionModal() {
         incrementPartial()
       })
 
-      eventSource.addEventListener('error', (e) => {
+      // Événement d'erreur d'un fichier
+      eventSource.addEventListener('file_error', (e) => {
         try {
           const data = JSON.parse((e as MessageEvent).data)
           setFiles((prev) =>
@@ -240,9 +250,9 @@ export function ExtractionModal() {
                     ...f,
                     status: 'failed' as const,
                     error: {
-                      code: data.error_code || 'ERROR_UNKNOWN',
+                      code: data.error_type || 'ERROR_UNKNOWN',
                       message: data.error || 'Erreur inconnue',
-                      recoverable: data.recoverable ?? true,
+                      recoverable: true,
                     },
                   }
                 : f
@@ -254,7 +264,14 @@ export function ExtractionModal() {
         }
       })
 
-      eventSource.addEventListener('batch_complete', () => {
+      // Événement de fin de batch
+      eventSource.addEventListener('batch_complete', (e) => {
+        try {
+          const data = JSON.parse((e as MessageEvent).data)
+          console.log('Batch terminé:', data)
+        } catch {
+          // Ignore parse errors
+        }
         eventSource.close()
         eventSourceRef.current = null
         setConnectionState('closed')

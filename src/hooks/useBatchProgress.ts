@@ -21,47 +21,83 @@ export function useBatchProgress(batchId: string | null, options: UseBatchProgre
       `${API_URL}/extract-batch-worker/${batchId}/stream`
     )
 
-    eventSource.addEventListener('progress', (e) => {
+    // Événement de connexion établie
+    eventSource.addEventListener('connected', () => {
+      console.log('SSE batch progress connecté')
+    })
+
+    // Événement de début de traitement d'un fichier
+    eventSource.addEventListener('file_start', (e) => {
       const data = JSON.parse(e.data)
       setTasks((prev) => {
-        const idx = prev.findIndex((t) => t.task_id === data.task_id)
+        const idx = prev.findIndex((t) => t.filename === data.filename)
         if (idx >= 0) {
           const updated = [...prev]
-          updated[idx] = { ...updated[idx], ...data }
+          updated[idx] = { ...updated[idx], status: 'processing' }
           return updated
         }
-        return [...prev, data]
+        return [...prev, { task_id: data.filename, filename: data.filename, status: 'processing' }]
       })
     })
 
-    eventSource.addEventListener('complete', (e) => {
+    // Événement de succès d'un fichier
+    eventSource.addEventListener('file_complete', (e) => {
       const data = JSON.parse(e.data)
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.task_id === data.task_id
-            ? { ...t, status: 'complete', document_id: data.document_id }
-            : t
-        )
-      )
+      setTasks((prev) => {
+        const idx = prev.findIndex((t) => t.filename === data.filename)
+        if (idx >= 0) {
+          const updated = [...prev]
+          updated[idx] = { ...updated[idx], status: 'complete', document_id: data.document_id }
+          return updated
+        }
+        return [...prev, { task_id: data.filename, filename: data.filename, status: 'complete', document_id: data.document_id }]
+      })
       // Invalidate cache
       queryClient.invalidateQueries({ queryKey: ['documents'] })
     })
 
-    eventSource.addEventListener('error', (e) => {
+    // Événement d'avertissement (NEEDS_REVIEW)
+    eventSource.addEventListener('file_warning', (e) => {
+      const data = JSON.parse(e.data)
+      setTasks((prev) => {
+        const idx = prev.findIndex((t) => t.filename === data.filename)
+        if (idx >= 0) {
+          const updated = [...prev]
+          updated[idx] = { ...updated[idx], status: 'warning', document_id: data.document_id }
+          return updated
+        }
+        return [...prev, { task_id: data.filename, filename: data.filename, status: 'warning', document_id: data.document_id }]
+      })
+      queryClient.invalidateQueries({ queryKey: ['documents'] })
+    })
+
+    // Événement d'erreur d'un fichier
+    eventSource.addEventListener('file_error', (e) => {
       try {
         const data = JSON.parse((e as MessageEvent).data)
-        setTasks((prev) =>
-          prev.map((t) =>
-            t.task_id === data.task_id ? { ...t, status: 'error', error: data.error } : t
-          )
-        )
+        setTasks((prev) => {
+          const idx = prev.findIndex((t) => t.filename === data.filename)
+          if (idx >= 0) {
+            const updated = [...prev]
+            updated[idx] = { ...updated[idx], status: 'error', error: data.error }
+            return updated
+          }
+          return [...prev, { task_id: data.filename, filename: data.filename, status: 'error', error: data.error }]
+        })
       } catch {
         // Connection error
         setError('Connexion perdue')
       }
     })
 
-    eventSource.addEventListener('batch_complete', () => {
+    // Événement de fin de batch
+    eventSource.addEventListener('batch_complete', (e) => {
+      try {
+        const data = JSON.parse((e as MessageEvent).data)
+        console.log('Batch terminé:', data)
+      } catch {
+        // Ignore parse errors
+      }
       setIsComplete(true)
       options.onComplete?.(tasks)
       eventSource.close()
