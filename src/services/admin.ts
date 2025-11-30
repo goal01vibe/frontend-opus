@@ -54,6 +54,23 @@ interface LogsDashboardResponse {
 }
 
 export const adminService = {
+  // Health check - vérifie si le backend est accessible
+  checkHealth: async (): Promise<{ status: 'connected' | 'disconnected'; latency?: number }> => {
+    const start = Date.now()
+    try {
+      await api.get('/health', { timeout: 3000 })
+      return { status: 'connected', latency: Date.now() - start }
+    } catch {
+      // Essayer un autre endpoint si /health n'existe pas
+      try {
+        await api.get('/documents', { params: { limit: 1 }, timeout: 3000 })
+        return { status: 'connected', latency: Date.now() - start }
+      } catch {
+        return { status: 'disconnected' }
+      }
+    }
+  },
+
   // Stats
   getStats: async (): Promise<StatsResponse> => {
     const { data } = await api.get<StatsResponse>('/admin/stats')
@@ -111,7 +128,7 @@ export const adminService = {
     try {
       // Try Flower API first (common setup)
       const { data } = await api.get('/admin/workers')
-      return data
+      return data.workers || []
     } catch {
       // Fallback: Return mock workers based on current processing
       const current = await adminService.getCurrentProcessing()
