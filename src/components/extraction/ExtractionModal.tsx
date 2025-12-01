@@ -16,7 +16,7 @@ interface LocalFileStatus extends Omit<FileStatus, 'file'> {
 }
 
 export function ExtractionModal() {
-  const { isUploadModalOpen, closeUploadModal, addBatch, incrementCompleted, incrementFailed, incrementPartial } = useExtractionStore()
+  const { isUploadModalOpen, closeUploadModal, addBatch, removeBatch, incrementBatchCompleted, incrementBatchFailed, incrementCompleted, incrementFailed, incrementPartial } = useExtractionStore()
   const [files, setFiles] = useState<LocalFileStatus[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [confidence, setConfidence] = useState(60)
@@ -49,6 +49,10 @@ export function ExtractionModal() {
                 : f
             )
           )
+          // Mettre à jour le batch dans le store (pour FloatingExtractionModule)
+          if (data.batch_id) {
+            incrementBatchCompleted(data.batch_id)
+          }
           incrementCompleted()
           break
 
@@ -89,16 +93,24 @@ export function ExtractionModal() {
                 : f
             )
           )
+          // Mettre à jour le batch dans le store
+          if (data.batch_id) {
+            incrementBatchFailed(data.batch_id)
+          }
           incrementFailed()
           break
 
         case 'batch_complete':
           console.log('Batch terminé:', data)
+          // Retirer le batch de la liste des actifs
+          if (data.batch_id) {
+            removeBatch(data.batch_id)
+          }
           currentBatchIdRef.current = null
           setIsUploading(false)
           break
       }
-    }, [incrementCompleted, incrementFailed, incrementPartial]),
+    }, [incrementCompleted, incrementFailed, incrementPartial, incrementBatchCompleted, incrementBatchFailed, removeBatch]),
   })
 
   const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: any[]) => {
@@ -328,7 +340,7 @@ export function ExtractionModal() {
             <input {...getInputProps()} />
             <Upload
               className={cn(
-                'w-12 h-12 mx-auto mb-4',
+                'w-12 h-12 mx-auto mb-4 pointer-events-none',
                 isDragAccept && 'text-green-500',
                 isDragReject && 'text-red-500',
                 !isDragActive && 'text-gray-400'

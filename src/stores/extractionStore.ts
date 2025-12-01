@@ -18,6 +18,8 @@ interface ExtractionState {
   addBatch: (batch: BatchProgress) => void
   updateBatch: (batchId: string, updates: Partial<BatchProgress>) => void
   removeBatch: (batchId: string) => void
+  incrementBatchCompleted: (batchId: string) => void
+  incrementBatchFailed: (batchId: string) => void
 
   // Current tasks
   currentTasks: BatchTask[]
@@ -85,6 +87,16 @@ export const useExtractionStore = create<ExtractionState>()(
       })),
       removeBatch: (batchId) => set((state) => ({
         activeBatches: state.activeBatches.filter(b => b.batch_id !== batchId)
+      })),
+      incrementBatchCompleted: (batchId) => set((state) => ({
+        activeBatches: state.activeBatches.map(b =>
+          b.batch_id === batchId ? { ...b, completed: (b.completed || 0) + 1 } : b
+        )
+      })),
+      incrementBatchFailed: (batchId) => set((state) => ({
+        activeBatches: state.activeBatches.map(b =>
+          b.batch_id === batchId ? { ...b, failed: (b.failed || 0) + 1 } : b
+        )
       })),
 
       // Current tasks

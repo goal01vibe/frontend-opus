@@ -9,7 +9,8 @@ export const formatCurrency = (val: number) =>
   new Intl.NumberFormat('fr-FR', {
     style: 'currency',
     currency: 'EUR',
-    maximumFractionDigits: 0
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
   }).format(val)
 
 export const formatFullCurrency = (val: number) =>
@@ -20,12 +21,14 @@ export const formatFullCurrency = (val: number) =>
 
 export const formatPercent = (val: number) => `${val}%`
 
-export const formatDate = (date: string | Date) => {
+export const formatDate = (date: string | Date | null | undefined) => {
+  if (!date) return '-'
   const d = typeof date === 'string' ? new Date(date) : date
   return d.toLocaleDateString('fr-FR')
 }
 
-export const formatDateTime = (date: string | Date) => {
+export const formatDateTime = (date: string | Date | null | undefined) => {
+  if (!date) return '-'
   const d = typeof date === 'string' ? new Date(date) : date
   return d.toLocaleString('fr-FR')
 }

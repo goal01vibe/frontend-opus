@@ -189,6 +189,7 @@ export function ExtractionsTable({ data, extractions = [], viewMode = 'documents
         accessorKey: 'document_id',
         header: 'Doc #',
         size: 60,
+        meta: { sticky: true, stickyLeft: 0 },
         cell: ({ getValue }) => (
           <span className="text-xs font-mono text-gray-500">#{getValue() as number}</span>
         ),
@@ -196,7 +197,8 @@ export function ExtractionsTable({ data, extractions = [], viewMode = 'documents
       {
         accessorKey: 'code_article',
         header: 'Code article',
-        size: 120,
+        size: 130,
+        meta: { sticky: true, stickyLeft: 60 },
         cell: ({ getValue }) => (
           <span className="font-mono text-sm">{getValue() as string || '-'}</span>
         ),
@@ -226,6 +228,32 @@ export function ExtractionsTable({ data, extractions = [], viewMode = 'documents
         cell: ({ getValue }) => (
           <span className="text-right block">{formatCurrency(getValue() as number)}</span>
         ),
+      },
+      {
+        accessorKey: 'remise_taux',
+        header: 'Remise',
+        size: 70,
+        cell: ({ getValue }) => {
+          const remise = getValue() as number | undefined
+          if (!remise) return <span className="text-gray-400 text-center block">-</span>
+          return (
+            <span className="text-orange-600 font-medium text-center block">
+              {remise}%
+            </span>
+          )
+        },
+      },
+      {
+        accessorKey: 'prix_net_unitaire_ht',
+        header: 'P. Net U. HT',
+        size: 100,
+        cell: ({ getValue }) => {
+          const val = getValue() as number | undefined
+          if (!val) return <span className="text-gray-400 text-right block">-</span>
+          return (
+            <span className="text-right block">{formatCurrency(val)}</span>
+          )
+        },
       },
       {
         accessorKey: 'taux_tva',
@@ -270,12 +298,6 @@ export function ExtractionsTable({ data, extractions = [], viewMode = 'documents
           </span>
         ),
       },
-      {
-        accessorKey: 'confidence_score',
-        header: 'Score',
-        size: 80,
-        cell: ({ getValue }) => <ConfidenceBadge score={getValue() as number} />,
-      },
     ],
     []
   )
@@ -315,23 +337,43 @@ export function ExtractionsTable({ data, extractions = [], viewMode = 'documents
     )
   }
 
+  // Helper pour obtenir les styles sticky
+  const getStickyStyles = (columnDef: ColumnDef<Document | Extraction>) => {
+    const meta = columnDef.meta as { sticky?: boolean; stickyLeft?: number } | undefined
+    if (meta?.sticky) {
+      return {
+        position: 'sticky' as const,
+        left: meta.stickyLeft ?? 0,
+        zIndex: 1,
+      }
+    }
+    return {}
+  }
+
   return (
     <div className="overflow-auto custom-scrollbar">
       <table className="w-full text-left border-collapse min-w-[900px]">
-        <thead className="bg-gray-50 sticky top-0 z-10">
+        <thead className="bg-gray-50 sticky top-0 z-20">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th
-                  key={header.id}
-                  className="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 bg-gray-50"
-                  style={{ width: header.getSize() }}
-                >
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(header.column.columnDef.header as string, header.getContext() as never)}
-                </th>
-              ))}
+              {headerGroup.headers.map((header) => {
+                const stickyStyles = getStickyStyles(header.column.columnDef)
+                const isSticky = !!(header.column.columnDef.meta as { sticky?: boolean })?.sticky
+                return (
+                  <th
+                    key={header.id}
+                    className={cn(
+                      "py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 bg-gray-50",
+                      isSticky && "shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]"
+                    )}
+                    style={{ width: header.getSize(), ...stickyStyles, zIndex: isSticky ? 21 : undefined }}
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(header.column.columnDef.header as string, header.getContext() as never)}
+                  </th>
+                )
+              })}
             </tr>
           ))}
         </thead>
@@ -343,6 +385,7 @@ export function ExtractionsTable({ data, extractions = [], viewMode = 'documents
             const docId = viewMode === 'documents'
               ? (row.original as Document).id
               : (row.original as Extraction).document_id
+            const rowBgClass = getRowColor(rowId, viewMode === 'lines')
 
             return (
               <tr
@@ -350,18 +393,32 @@ export function ExtractionsTable({ data, extractions = [], viewMode = 'documents
                 onClick={() => openDrawer(docId)}
                 className={cn(
                   'cursor-pointer transition-colors duration-150 border-l-4',
-                  getRowColor(rowId, viewMode === 'lines'),
+                  rowBgClass,
                   'hover:bg-blue-50',
                   selectedId === docId
                     ? 'bg-blue-50 border-blue-500'
                     : 'border-transparent'
                 )}
               >
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="py-3 px-4 text-sm text-gray-600">
-                    {flexRender(cell.column.columnDef.cell as string, cell.getContext() as never)}
-                  </td>
-                ))}
+                {row.getVisibleCells().map((cell) => {
+                  const stickyStyles = getStickyStyles(cell.column.columnDef)
+                  const isSticky = !!(cell.column.columnDef.meta as { sticky?: boolean })?.sticky
+                  // Pour les cellules sticky, on reprend la couleur de fond de la ligne
+                  const bgClass = isSticky ? (selectedId === docId ? 'bg-blue-50' : rowBgClass) : ''
+                  return (
+                    <td
+                      key={cell.id}
+                      className={cn(
+                        "py-3 px-4 text-sm text-gray-600",
+                        isSticky && "shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]",
+                        bgClass
+                      )}
+                      style={stickyStyles}
+                    >
+                      {flexRender(cell.column.columnDef.cell as string, cell.getContext() as never)}
+                    </td>
+                  )
+                })}
               </tr>
             )
           })}
