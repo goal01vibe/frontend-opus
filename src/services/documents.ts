@@ -1,5 +1,5 @@
 import api from './api'
-import type { Document, PaginatedResponse, FilterState } from '@/types'
+import type { Document, PaginatedResponse, FilterState, FournisseurType } from '@/types'
 
 interface DocumentsParams {
   limit?: number
@@ -16,12 +16,30 @@ interface DocumentsApiResponse {
   documents: Document[]
 }
 
+// Liste des grossistes (évolutive)
+const GROSSISTES = ['OCP', 'STRAIGHT', 'ACTIVE-REPARTITION', 'D2P', 'AREDIS']
+
+/**
+ * Dérive la catégorie fournisseur à partir du nom du fournisseur
+ */
+function deriveCategorieFromFournisseur(fournisseur: string): FournisseurType {
+  if (!fournisseur) return 'LABO'
+  const normalized = fournisseur.toUpperCase().trim()
+  return GROSSISTES.some(g => normalized.includes(g) || g.includes(normalized))
+    ? 'GROSSISTE'
+    : 'LABO'
+}
+
 export const documentsService = {
   getAll: async (params: DocumentsParams = {}): Promise<PaginatedResponse<Document>> => {
     const { data } = await api.get<DocumentsApiResponse>('/documents', { params })
-    // Transform API response to our format
+    // Transform API response to our format + derive categorie_fournisseur
+    const items = (data.documents || []).map(doc => ({
+      ...doc,
+      categorie_fournisseur: doc.categorie_fournisseur || deriveCategorieFromFournisseur(doc.fournisseur)
+    }))
     return {
-      items: data.documents || [],
+      items,
       total: data.count || 0,
       page: 1,
       limit: params.limit || 50,

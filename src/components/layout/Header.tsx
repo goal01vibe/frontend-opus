@@ -1,9 +1,22 @@
 import { Menu, FileText, Search } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { FloatingExtractionModule } from '../extraction/FloatingExtractionModule'
 import { useUIStore } from '@/stores/uiStore'
+import { adminService } from '@/services/admin'
 
 export function Header() {
   const { setSearchOpen } = useUIStore()
+
+  // Vérification réelle de la connexion au backend
+  const { data: healthStatus } = useQuery({
+    queryKey: ['health'],
+    queryFn: adminService.checkHealth,
+    refetchInterval: 10000, // Revérifier toutes les 10 secondes
+    retry: false,
+    staleTime: 5000,
+  })
+
+  const isConnected = healthStatus?.status === 'connected'
 
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-3 flex justify-between items-center shadow-sm z-30 relative shrink-0 h-16">
@@ -35,10 +48,25 @@ export function Header() {
           </kbd>
         </button>
 
-        {/* Connection Status */}
-        <div className="hidden sm:flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-full border border-gray-200">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          <span className="text-xs font-medium text-gray-600">Base Connectée</span>
+        {/* Connection Status - Vérification RÉELLE */}
+        <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border ${
+          isConnected
+            ? 'bg-green-50 border-green-200'
+            : 'bg-red-50 border-red-200'
+        }`}>
+          <div className={`w-2 h-2 rounded-full ${
+            isConnected
+              ? 'bg-green-500 animate-pulse'
+              : 'bg-red-500'
+          }`} />
+          <span className={`text-xs font-medium ${
+            isConnected ? 'text-green-700' : 'text-red-700'
+          }`}>
+            {isConnected ? 'Base Connectée' : 'Base Déconnectée'}
+          </span>
+          {isConnected && healthStatus?.latency && (
+            <span className="text-xs text-green-600">({healthStatus.latency}ms)</span>
+          )}
         </div>
 
         {/* Extraction Module */}

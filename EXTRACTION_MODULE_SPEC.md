@@ -104,7 +104,7 @@ Refonte complète du module d'extraction pour offrir :
 | Staging | Redis | Stockage temporaire 24h |
 | Persistance | PostgreSQL | Base de données principale |
 
-### 2.2 Flux de données
+### 2.2 Flux de données - Extraction Batch
 
 ```
 Frontend                    Backend                     Workers
@@ -126,6 +126,66 @@ Frontend                    Backend                     Workers
     │  SSE: { complete }        │                           │
     │ <─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│                           │
 ```
+
+### 2.3 Architecture SSE Unifiée - Monitoring Admin (✅ NOUVEAU 2025-11-30)
+
+#### Principe : Un seul endpoint SSE pour tout le monitoring
+
+Au lieu de créer plusieurs endpoints SSE séparés (workers, metrics, logs, batch), on utilise **un seul endpoint SSE unifié `/admin/stream`** qui agrège toutes les données temps réel :
+
+```
+Frontend                    Backend
+────────                    ───────
+    │                           │
+    │  GET /admin/stream        │
+    │ ─────────────────────────>│
+    │                           │
+    │  SSE: workers_update      │  ← Celery inspect toutes les 5s
+    │ <─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│
+    │  SSE: metrics_update      │  ← Stats DB/Redis toutes les 10s
+    │ <─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│
+    │  SSE: batch_progress      │  ← Redis pub/sub (temps réel)
+    │ <─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│
+    │  SSE: log_entry           │  ← Nouveaux logs
+    │ <─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│
+```
+
+#### Avantages de l'architecture unifiée
+
+| Aspect | Multiple SSE | SSE Unifié |
+|--------|--------------|------------|
+| Connexions HTTP | 4-5 par client | **1 seule** |
+| Charge mémoire | Élevée | **Faible** |
+| Limite navigateur | Risque (6 max/domaine) | **Aucun risque** |
+| Extensibilité | Nouveau endpoint par feature | **Ajouter event type** |
+| Reconnexion | 4-5 reconnexions | **1 seule** |
+
+#### Types d'événements SSE
+
+| Événement | Intervalle | Données |
+|-----------|------------|---------|
+| `workers_update` | 5 secondes | État workers Celery (hostname, status, active_tasks) |
+| `metrics_update` | 10 secondes | Métriques performance (DB stats, Redis, extraction) |
+| `batch_progress` | Temps réel | Progression batch en cours (file_start, file_complete, file_error) |
+| `log_entry` | Temps réel | Nouveaux logs important (ERROR, WARNING) |
+
+#### Backend - Fichiers à créer/modifier
+
+| Fichier | Action | Description |
+|---------|--------|-------------|
+| `app/routers/stream_router.py` | **CRÉER** | Endpoint SSE unifié `/admin/stream` |
+| `app/routers/admin_router.py` | MODIFIER | Ajouter `/admin/workers` (REST fallback) |
+| `app/tasks.py` | MODIFIER | Ajouter publication Redis pub/sub |
+| `app/main.py` | MODIFIER | Inclure `stream_router` |
+
+#### Frontend - Fichiers à créer/modifier
+
+| Fichier | Action | Description |
+|---------|--------|-------------|
+| `src/hooks/useAdminStream.ts` | **CRÉER** | Hook SSE unifié |
+| `src/services/admin.ts` | MODIFIER | Ajouter `getWorkers()` REST fallback |
+| `src/pages/admin/Workers.tsx` | MODIFIER | Utiliser hook SSE |
+| `src/components/extraction/ExtractionModal.tsx` | MODIFIER | Utiliser batch stream |
 
 ---
 
@@ -535,6 +595,161 @@ export function useExtractionStream(
 | Fichier OK | Aucun (silencieux) |
 | Fichier erreur | "Erreur: facture_003.pdf - PDF scanné" |
 | Batch terminé | "Extraction terminée: 8✓ 2✗" |
+
+### 4.4 Banner Header Post-Extraction (✅ NOUVEAU 2025-11-30)
+
+À la fin d'une extraction, un **banner coloré** apparaît en haut de page :
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  ✅ Extraction terminée │ 18✓ succès │ 2⚠ warnings │ 45s │ [Voir rapport →] │ ✕ │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Styles par résultat** :
+| Résultat | Couleur | Icône |
+|----------|---------|-------|
+| 100% succès | Vert (bg-green-100) | ✅ |
+| Avec warnings | Orange (bg-amber-100) | ⚠️ |
+| Avec erreurs | Rouge (bg-red-100) | ❌ |
+
+**Comportement** :
+- Reste affiché jusqu'au click sur "Voir rapport" ou fermeture manuelle (✕)
+- Si nouvelle extraction démarre, remplace le banner précédent
+- Click "Voir rapport" → Redirection vers `/admin/extractions/{batch_id}`
+
+**Composant** : `ExtractionCompleteBanner.tsx`
+
+### 4.5 Gestion Fermeture Navigateur
+
+- **Extraction continue** côté backend (Celery workers indépendants)
+- **Notification au retour** : Banner header si extraction terminée/en cours pendant l'absence
+- **Persistance état** : `batch_id` actif stocké dans `localStorage`
+
+---
+
+## 4bis. Page Admin Extractions `/admin/extractions` (✅ NOUVEAU 2025-11-30)
+
+### 4bis.1 Route et Navigation
+
+**Routes** :
+- `/admin/extractions` - Liste des batchs (historique)
+- `/admin/extractions/{batch_id}` - Détail d'un batch spécifique
+
+**Accès** : Menu Admin → Sous-menu "Extractions"
+
+### 4bis.2 Page Liste des Batchs
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Admin > Extractions                     Période: [Aujourd'hui ▼]      │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  Périodes: [Aujourd'hui] [7 jours] [30 jours] [Personnalisé]           │
+│  (Archivage automatique après 30 jours)                                 │
+│                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  Batch #abc123 │ 14:32 │ 20 fichiers │ 45s │ 18✓ 2⚠ │ [Voir]   │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  Batch #def456 │ 11:15 │ 5 fichiers  │ 12s │ 5✓    │ [Voir]    │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 4bis.3 Page Détail Batch (Rapport)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Admin > Extractions > Batch #abc123                                     │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  RÉSUMÉ                                                                  │
+│  ─────────────────────────────────────────────────────────────────      │
+│  Total: 20 fichiers │ Durée: 45s │ Moyenne: 2.25s/fichier               │
+│  ✓ Succès: 18 │ ⚠ Warnings: 2 │ ✗ Erreurs: 0                           │
+│                                                                          │
+│  ACTIONS GROUPÉES                                                        │
+│  ─────────────────────────────────────────────────────────────────      │
+│  [🔄 Retry timeouts]  [✓ Valider score > 80]  [📥 Export CSV erreurs]  │
+│                                                                          │
+│  FICHIERS                                                                │
+│  ─────────────────────────────────────────────────────────────────      │
+│  Filtrer: [Tous ▼] [Succès] [Warnings] [Erreurs]                        │
+│                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  ✅ facture_001.pdf │ Score: 95 │ 1.8s │ OCP_v2                  │    │
+│  │     [👁️ PDF] [📊 Données] [✓ Valider] [✗ Rejeter] [🔄 Retry]   │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  ⚠️ facture_003.pdf │ Score: 62 │ 2.4s │ OCP_v1                  │    │
+│  │     Raisons: ❌ 2 lignes Qté×Prix ≠ Montant                      │    │
+│  │     [👁️ PDF] [📊 Données] [✓ Valider] [✗ Rejeter] [🔄 Retry]   │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 4bis.4 Actions Individuelles par Fichier
+
+| Action | Icône | Comportement |
+|--------|-------|--------------|
+| Voir PDF | 👁️ | Ouvre PDF dans viewer intégré ou nouvel onglet |
+| Voir données | 📊 | Modal avec tableau des données extraites |
+| Valider | ✓ | `PATCH /documents/{id}/validate` |
+| Rejeter | ✗ | Modal avec raison → `PATCH /documents/{id}/reject` |
+| Retry | 🔄 | Relance extraction pour ce fichier |
+
+### 4bis.5 Actions Groupées
+
+| Action | Endpoint | Comportement |
+|--------|----------|--------------|
+| Retry timeouts | `POST /admin/batches/{id}/retry-errors` | Relance fichiers timeout |
+| Valider score > 80 | `POST /admin/batches/{id}/validate-high-confidence` | Validation en masse |
+| Export CSV | `GET /admin/batches/{id}/export` | Télécharge fichiers problématiques |
+
+### 4bis.6 Métriques Affichées
+
+- **Temps total** du batch
+- **Temps par fichier** (moyenne + individuel)
+- **Score de confiance** avec code couleur :
+  - 🟢 Vert : > 80
+  - 🟠 Orange : 50-80
+  - 🔴 Rouge : < 50
+
+### 4bis.7 Endpoints Backend Requis
+
+| Méthode | Endpoint | Description | Status |
+|---------|----------|-------------|--------|
+| `GET` | `/admin/batches` | Liste batchs par période | ❌ À créer |
+| `GET` | `/admin/batches/{id}` | Détail batch avec fichiers | ❌ À créer |
+| `POST` | `/admin/batches/{id}/retry-errors` | Retry erreurs groupé | ❌ À créer |
+| `POST` | `/admin/batches/{id}/validate-high-confidence` | Validation groupée | ❌ À créer |
+| `GET` | `/admin/batches/{id}/export` | Export CSV erreurs | ❌ À créer |
+
+### 4bis.8 Stockage Batch (PostgreSQL)
+
+```sql
+CREATE TABLE batches (
+    batch_id VARCHAR(10) PRIMARY KEY,
+    started_at TIMESTAMP NOT NULL,
+    completed_at TIMESTAMP,
+    total_files INT NOT NULL,
+    success_count INT DEFAULT 0,
+    warning_count INT DEFAULT 0,
+    error_count INT DEFAULT 0,
+    avg_confidence DECIMAL(5,2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Index pour requêtes par période
+CREATE INDEX idx_batches_started_at ON batches(started_at DESC);
+
+-- Lien avec documents
+ALTER TABLE documents ADD COLUMN batch_id VARCHAR(10) REFERENCES batches(batch_id);
+```
 
 ---
 
@@ -1251,32 +1466,111 @@ Les extractions avec un score de confiance inférieur au seuil configuré sont s
 | **Review Reasons + Validation** | ✅ **EXISTE** (2025-11-30) | - |
 | **Endpoints Validate/Reject** | ✅ **EXISTE** (`app/routers/data_router.py`) | - |
 | **Extraction date_echeance via templates** | ✅ **EXISTE** (2025-11-30) | - |
-| **SSE Streaming** | ❌ Manque | **2-3h** |
+| **SSE Unifié `/admin/stream`** | ❌ Manque | **2h** |
+| **SSE Batch `/extract-batch-worker/{id}/stream`** | ❌ Manque | **1h** |
 | **Endpoints REST Staging** | ❌ Manque | **1-2h** |
 | **Queue Management** | ❌ Manque | **1-2h** |
-| **Redis pub/sub Tasks** | ❌ Manque | **1-2h** |
-| Workers Status | ❌ Manque | 1h |
+| **Redis pub/sub Tasks** | ❌ Manque | **1h** |
+| **Workers Status REST `/admin/workers`** | ❌ Manque | **30min** |
+| **Batches - Table PostgreSQL** | ❌ Manque | **30min** |
+| **Batches - Endpoints `/admin/batches`** | ❌ Manque | **1-2h** |
+| **Banner Post-Extraction Frontend** | ❌ Manque | **1h** |
+| **Page `/admin/extractions` Frontend** | ❌ Manque | **2-3h** |
 | Protected PDFs | ❌ Manque | 2h |
 | File Validator avancé | ⚠️ Partiel | 1h |
 
-### 12.1 Extraction
+### 12.1 Streaming SSE (✅ ARCHITECTURE UNIFIÉE 2025-11-30)
+
+> **Voir section 2.3** pour l'architecture détaillée
+
+| Méthode | Endpoint | Description | Status |
+|---------|----------|-------------|--------|
+| `GET` | `/admin/stream` | **SSE unifié** - workers, metrics, batch, logs | ❌ À créer |
+| `GET` | `/extract-batch-worker/{id}/stream` | SSE progression batch spécifique | ❌ À créer |
+
+#### Événements SSE `/admin/stream`
+
+```typescript
+// workers_update - toutes les 5s
+interface WorkersUpdate {
+  event: 'workers_update';
+  data: {
+    hostname: string;
+    status: 'online' | 'busy' | 'offline';
+    active_tasks: number;
+    current_task: { id: string; name: string } | null;
+    processed_total: number;
+    queues: string[];
+    last_heartbeat: string;
+  }[];
+}
+
+// metrics_update - toutes les 10s
+interface MetricsUpdate {
+  event: 'metrics_update';
+  data: {
+    db_stats: { documents_count: number; extractions_count: number };
+    redis_stats: { connected: boolean; staging_count: number };
+    extraction_stats: { active: number; queued: number; failed_24h: number };
+  };
+}
+
+// batch_progress - temps réel via Redis pub/sub
+interface BatchProgress {
+  event: 'batch_progress';
+  data: {
+    type: 'file_start' | 'file_complete' | 'file_error' | 'batch_complete';
+    batch_id: string;
+    filename?: string;
+    status?: string;
+    document_id?: number;
+    error?: string;
+    timestamp: string;
+  };
+}
+```
+
+### 12.2 Extraction
 
 | Méthode | Endpoint | Description | Status |
 |---------|----------|-------------|--------|
 | `POST` | `/extract-batch-worker` | Lancer extraction batch | ✅ Existe |
-| `GET` | `/extract-batch-worker/{id}/stream` | SSE progression temps réel | ❌ À créer |
 | `GET` | `/extraction-queue` | État de la queue | ❌ À créer |
 | `DELETE` | `/extraction-queue/{batch_id}` | Annuler un batch | ❌ À créer |
 | `GET` | `/extraction-queue/position/{batch_id}` | Position d'un batch | ❌ À créer |
 
-### 12.2 Workers
+### 12.3 Workers (REST fallback)
+
+> **Note**: Le SSE `/admin/stream` est le mode principal. Ces endpoints REST servent de fallback.
 
 | Méthode | Endpoint | Description | Status |
 |---------|----------|-------------|--------|
-| `GET` | `/workers/status` | État des workers Celery | ❌ À créer |
-| `GET` | `/workers/stats` | Statistiques workers | ❌ À créer |
+| `GET` | `/admin/workers` | État workers Celery (REST fallback) | ❌ À créer |
 
-### 12.3 Staging Redis
+#### Réponse `/admin/workers`
+
+```json
+{
+  "workers": [
+    {
+      "hostname": "celery@worker-1",
+      "status": "busy",
+      "active_tasks": 2,
+      "current_task": {
+        "id": "abc123",
+        "name": "tasks.process_single_pdf_task"
+      },
+      "processed_total": 1542,
+      "failed_total": 12,
+      "last_heartbeat": "2025-11-30T14:32:15Z",
+      "queues": ["celery", "extraction"]
+    }
+  ],
+  "celery_available": true
+}
+```
+
+### 12.4 Staging Redis
 
 > **Note**: Le service `RedisStagingService` existe déjà avec toutes les méthodes.
 > Il suffit de créer les endpoints REST pour l'exposer.
@@ -1291,7 +1585,7 @@ Les extractions avec un score de confiance inférieur au seuil configuré sont s
 | `POST` | `/staging/{batch_id}/{file_id}/retry` | Retry extraction | ❌ À créer | - |
 | `DELETE` | `/staging/{batch_id}/{file_id}` | Supprimer | ❌ À créer | `delete_partial_extraction()` |
 
-### 12.4 Documents et Validation (✅ NOUVEAU 2025-11-30)
+### 12.5 Documents et Validation (✅ NOUVEAU 2025-11-30)
 
 | Méthode | Endpoint | Description | Status |
 |---------|----------|-------------|--------|
@@ -1302,7 +1596,7 @@ Les extractions avec un score de confiance inférieur au seuil configuré sont s
 | `PATCH` | `/documents/{id}/validate` | Valider manuellement (efface review_reasons) | ✅ **EXISTE** |
 | `PATCH` | `/documents/{id}/reject?reason=X` | Rejeter (ajoute review_reasons) | ✅ **EXISTE** |
 
-### 12.5 PDFs Protégés
+### 12.6 PDFs Protégés
 
 | Méthode | Endpoint | Description | Status |
 |---------|----------|-------------|--------|
@@ -1310,7 +1604,70 @@ Les extractions avec un score de confiance inférieur au seuil configuré sont s
 | `POST` | `/protected-pdfs/{id}/unlock` | Déverrouiller + extraire | ❌ À créer |
 | `DELETE` | `/protected-pdfs/{id}` | Supprimer | ❌ À créer |
 
-### 12.6 Erreurs et Historique
+### 12.7 Batches - Historique et Rapport (✅ NOUVEAU 2025-11-30)
+
+> **Voir section 4bis** pour l'interface frontend
+
+| Méthode | Endpoint | Description | Status |
+|---------|----------|-------------|--------|
+| `GET` | `/admin/batches` | Liste batchs par période | ❌ À créer |
+| `GET` | `/admin/batches/{id}` | Détail batch avec tous les fichiers | ❌ À créer |
+| `POST` | `/admin/batches/{id}/retry-errors` | Retry erreurs groupé | ❌ À créer |
+| `POST` | `/admin/batches/{id}/validate-high-confidence` | Validation groupée score > X | ❌ À créer |
+| `GET` | `/admin/batches/{id}/export` | Export CSV erreurs | ❌ À créer |
+
+#### Réponse `GET /admin/batches`
+
+```json
+{
+  "batches": [
+    {
+      "batch_id": "abc123",
+      "started_at": "2025-11-30T14:32:00Z",
+      "completed_at": "2025-11-30T14:32:45Z",
+      "duration_seconds": 45,
+      "total_files": 20,
+      "success_count": 18,
+      "warning_count": 2,
+      "error_count": 0,
+      "avg_confidence": 87.5
+    }
+  ],
+  "period": {"from": "2025-11-30", "to": "2025-11-30"}
+}
+```
+
+#### Réponse `GET /admin/batches/{id}`
+
+```json
+{
+  "batch_id": "abc123",
+  "started_at": "2025-11-30T14:32:00Z",
+  "completed_at": "2025-11-30T14:32:45Z",
+  "duration_seconds": 45,
+  "files": [
+    {
+      "filename": "facture_001.pdf",
+      "document_id": 42,
+      "status": "success",
+      "confidence_score": 95,
+      "processing_time_ms": 1800,
+      "template_used": "OCP_v2",
+      "review_reasons": []
+    }
+  ],
+  "summary": {
+    "total": 20,
+    "success": 18,
+    "warnings": 2,
+    "errors": 0,
+    "avg_time_ms": 2250,
+    "avg_confidence": 87.5
+  }
+}
+```
+
+### 12.8 Erreurs et Historique
 
 > **Note**: Admin router a déjà `/admin/performance/failures` pour les échecs récents
 
@@ -1324,7 +1681,7 @@ Les extractions avec un score de confiance inférieur au seuil configuré sont s
 | `DELETE` | `/extraction-errors/{id}` | Supprimer erreur | ❌ À créer |
 | `POST` | `/extraction-errors/{id}/retry` | Retry fichier | ❌ À créer |
 
-### 12.6 Administration (Logs & Config)
+### 12.9 Administration (Logs & Config)
 
 > **Note**: Les endpoints logs/debug existent déjà et sont fonctionnels !
 
@@ -1342,7 +1699,7 @@ Les extractions avec un score de confiance inférieur au seuil configuré sont s
 | `GET` | `/admin/extraction-config` | Lire configuration extraction | ❌ À créer |
 | `PUT` | `/admin/extraction-config` | Modifier configuration extraction | ❌ À créer |
 
-### 12.7 Schémas de réponse
+### 12.9 Schémas de réponse
 
 #### SSE Stream Events
 
@@ -1415,23 +1772,40 @@ interface StagingItem {
 
 ---
 
-### Phase 1: Backend Core - SSE + Pub/Sub (1 jour)
+### Phase 1: Backend Core - SSE Unifié + Pub/Sub (1 jour)
 
-> **Dépendances à installer** : `pip install sse-starlette pikepdf`
+> **Dépendances à installer** : `pip install sse-starlette pikepdf redis[hiredis]`
+>
+> **Architecture choisie** : SSE Unifié (voir section 2.3) - UNE seule connexion pour tout le monitoring
 
-#### 1.1 Modifier `tasks.py` - Publication Redis
-- [ ] Ajouter import Redis pub/sub
+#### 1.1 Créer `app/routers/stream_router.py` - SSE Unifié
+- [ ] Installer `sse-starlette`
+- [ ] Créer endpoint SSE `/admin/stream` avec `EventSourceResponse`
+- [ ] Implémenter `unified_event_stream()`:
+  - Émettre `workers_update` toutes les 5s via `celery.control.inspect()`
+  - Émettre `metrics_update` toutes les 10s (DB stats, Redis)
+  - Écouter Redis pub/sub pour `batch_progress` (temps réel)
+- [ ] Helper `get_celery_workers_status()` pour interroger Celery
+- [ ] Helper `get_current_metrics()` pour stats DB/Redis
+- [ ] Ping keepalive toutes les 15s
+- [ ] Gestion déconnexion client + cleanup
+
+#### 1.2 Créer endpoint SSE `/extract-batch-worker/{id}/stream` (batch spécifique)
+- [ ] Dans `extraction_router.py` ou `stream_router.py`
+- [ ] S'abonner au channel Redis `batch:{batch_id}` spécifique
+- [ ] Terminer stream sur événement `batch_complete`
+
+#### 1.3 Modifier `tasks.py` - Publication Redis
+- [ ] Ajouter import Redis sync client
+- [ ] Ajouter paramètre `batch_id` à `process_single_pdf_task`
 - [ ] Publier `file_start` au début du traitement
 - [ ] Publier `file_complete` ou `file_error` à la fin
 - [ ] Publier `batch_complete` quand tous terminés
-- [ ] Tests unitaires
 
-#### 1.2 Créer endpoint SSE `/extract-batch-worker/{id}/stream`
-- [ ] Installer `sse-starlette`
-- [ ] Créer endpoint SSE avec `EventSourceResponse`
-- [ ] S'abonner au channel Redis `batch:{batch_id}`
-- [ ] Gérer déconnexion client
-- [ ] Tests
+#### 1.4 Ajouter endpoint REST `/admin/workers` (fallback)
+- [ ] Dans `admin_router.py`
+- [ ] Réutiliser `get_celery_workers_status()` de stream_router
+- [ ] Retourner `{ workers: [...], celery_available: bool }`
 
 ---
 
@@ -1452,17 +1826,14 @@ interface StagingItem {
 
 ---
 
-### Phase 3: Backend - Queue & Workers (0.5 jour)
+### Phase 3: Backend - Queue Management (0.5 jour)
+
+> **Note**: Workers status est déjà couvert par Phase 1 (SSE unifié + REST fallback)
 
 #### 3.1 Endpoints Queue (dans `extraction_router.py`)
 - [ ] `GET /extraction-queue` → État queue Celery
 - [ ] `DELETE /extraction-queue/{batch_id}` → `celery.control.revoke()`
 - [ ] `GET /extraction-queue/position/{batch_id}` → Position dans queue
-
-#### 3.2 Créer `app/routers/workers_router.py`
-- [ ] `GET /workers/status` → `celery.control.inspect().active()`
-- [ ] `GET /workers/stats` → Statistiques workers
-- [ ] Enregistrer router dans `main.py`
 
 ---
 
@@ -1504,15 +1875,23 @@ interface StagingItem {
 - [ ] Fermeture immédiate après submit
 - [ ] Tests
 
-#### 6.2 Composant `ExtractionProgressBar` (Header)
+#### 6.2 Hook SSE Unifié `useAdminStream.ts` (NOUVEAU)
+- [ ] Créer `src/hooks/useAdminStream.ts`
+- [ ] Connexion unique à `/admin/stream`
+- [ ] Listeners par type d'événement (`workers_update`, `metrics_update`, `batch_progress`)
+- [ ] Reconnexion automatique avec backoff exponentiel
+- [ ] Callback `onEvent` pour dispatcher vers composants
+- [ ] Export `{ close }` pour cleanup
+
+#### 6.3 Composant `ExtractionProgressBar` (Header)
 - [ ] Badge "Extraction ●N"
 - [ ] Barre de progression globale
 - [ ] Compteurs (succès, en cours, erreurs)
-- [ ] Hook `useExtractionStream` avec SSE + reconnexion
+- [ ] Utiliser `useAdminStream` pour batch_progress
 - [ ] Notifications toast (sonner)
 - [ ] Bouton lien vers /extractions/live
 
-#### 6.3 Intégration Review Reasons (✅ Backend prêt)
+#### 6.4 Intégration Review Reasons (✅ Backend prêt)
 - [ ] Hook `useDocumentValidation` (validate/reject mutations)
 - [ ] Composant `ReviewReasonsBadges` (affichage raisons)
 - [ ] Composant `DocumentValidationActions` (boutons Valider/Rejeter)
@@ -1531,9 +1910,9 @@ interface StagingItem {
 - [ ] Onglets: Actif | Staging (N) | Protégés (N)
 
 #### 7.2 Onglet Actif
-- [ ] Progression batch temps réel (SSE)
+- [ ] Progression batch temps réel (via `useAdminStream` → `batch_progress`)
 - [ ] Liste fichiers avec statut individuel
-- [ ] Panneau Workers (statut via polling)
+- [ ] Panneau Workers (via `useAdminStream` → `workers_update`, fallback REST `/admin/workers`)
 - [ ] Queue batchs en attente
 
 #### 7.3 Onglet Staging
@@ -1556,7 +1935,7 @@ interface StagingItem {
 - [ ] Intégration `/extraction-errors/*`
 
 #### 7.6 Métriques & Historique
-- [ ] Stats temps réel (polling `/admin/performance/metrics`)
+- [ ] Stats temps réel (via `useAdminStream` → `metrics_update`, fallback polling `/admin/performance/metrics`)
 - [ ] Graphique 30 jours (recharts)
 - [ ] Tableau historique avec pagination
 - [ ] Export CSV

@@ -86,25 +86,35 @@ export function AdminMetrics() {
       .slice(0, 5)
   })()
 
-  // Calculate metrics from real data if API fails
+  // Calculate metrics from real documents data (more reliable than in-memory tracker)
   const calcSuccessRate = () => {
-    if (metrics?.success_rate != null) {
-      return Number(metrics.success_rate) || 0
-    }
     if (documents.length > 0) {
-      return (documents.filter(d => d.status !== 'FAILED').length / documents.length * 100)
+      const successCount = documents.filter(d => d.status === 'AUTO_PROCESSED' || d.status === 'NEEDS_REVIEW').length
+      return (successCount / documents.length * 100)
     }
     return 0
   }
 
+  // Calculate extractions in last hour from documents
+  const extractionsLastHour = documents.filter(d => {
+    const hourAgo = new Date(Date.now() - 3600000)
+    return new Date(d.date_extraction) > hourAgo
+  }).length
+
+  // Calculate average processing time from documents (if available)
+  const avgProcessingTime = (() => {
+    const docsWithTime = documents.filter(d => d.processing_time_ms && d.processing_time_ms > 0)
+    if (docsWithTime.length > 0) {
+      const total = docsWithTime.reduce((sum, d) => sum + (d.processing_time_ms || 0), 0)
+      return total / docsWithTime.length
+    }
+    // Fallback to API metrics
+    return Number(metrics?.performance?.avg_processing_time_ms) || 0
+  })()
+
   const displayMetrics = {
-    extractions_per_hour: metrics?.total_processed
-      ? Math.round(metrics.total_processed / 24)
-      : documents.filter(d => {
-          const hourAgo = new Date(Date.now() - 3600000)
-          return new Date(d.date_extraction) > hourAgo
-        }).length,
-    avg_extraction_time_ms: Number(metrics?.avg_processing_time_ms) || 0,
+    extractions_per_hour: extractionsLastHour || (metrics?.processing_rate?.last_hour || 0),
+    avg_extraction_time_ms: avgProcessingTime,
     success_rate_24h: calcSuccessRate(),
     queue_depth: Number(metrics?.current_processing) || 0,
   }
