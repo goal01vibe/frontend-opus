@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "Task(*)",
+      "Bash(*)",
+      "mcp__playwright__*",
+      "mcp__context7__*",
+      "mcp__docker-mcp__*",
+      "mcp__github__*"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "agentPermissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "Bash(*)",
+      "mcp__playwright__*",
+      "mcp__context7__*",
+      "mcp__docker-mcp__*",
+      "mcp__github__*"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

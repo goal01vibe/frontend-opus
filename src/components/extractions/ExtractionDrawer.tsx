@@ -16,7 +16,9 @@ import {
   Hash,
   Clock,
   User,
-  Maximize2
+  Maximize2,
+  PanelLeftClose,
+  PanelLeft
 } from 'lucide-react'
 import { cn, formatFullCurrency, formatDate } from '@/lib/utils'
 import { StatusBadge } from '@/components/common/StatusBadge'
@@ -44,6 +46,7 @@ export function ExtractionDrawer({ document, isOpen }: ExtractionDrawerProps) {
   const [scale, setScale] = useState<number>(0.6)
   const [pdfError, setPdfError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'info' | 'pdf'>('info')
+  const [splitView, setSplitView] = useState<boolean>(false)
 
   // Reset state when document changes
   useEffect(() => {
@@ -100,14 +103,17 @@ export function ExtractionDrawer({ document, isOpen }: ExtractionDrawerProps) {
     }
   }
 
+  // Largeur dynamique selon mode split
+  const drawerWidth = splitView ? 900 : 420
+
   return (
     <div
       className={cn(
         'fixed top-0 right-0 h-full bg-white shadow-2xl z-30 border-l border-gray-200',
-        'transition-transform duration-300 ease-in-out flex flex-col overflow-hidden',
+        'transition-all duration-300 ease-in-out flex flex-col overflow-hidden',
         isOpen ? 'translate-x-0' : 'translate-x-full'
       )}
-      style={{ width: '420px' }}
+      style={{ width: `${drawerWidth}px` }}
     >
       {/* Header */}
       <div className="px-5 py-4 border-b border-gray-200 flex justify-between items-center bg-white shrink-0">
@@ -120,16 +126,36 @@ export function ExtractionDrawer({ document, isOpen }: ExtractionDrawerProps) {
             <p className="text-xs text-gray-500">{document.numero_facture}</p>
           </div>
         </div>
-        <button
-          onClick={closeDrawer}
-          className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Split View Toggle */}
+          <button
+            onClick={() => setSplitView(!splitView)}
+            className={cn(
+              'p-2 rounded-lg transition-all duration-200',
+              splitView
+                ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+            )}
+            title={splitView ? 'Vue simple' : 'Vue PDF + Infos'}
+          >
+            {splitView ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
+          </button>
+          <button
+            onClick={closeDrawer}
+            className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="flex border-b border-gray-200 bg-gray-50 px-2">
+      {/* Tab Navigation - Masqué en mode split */}
+      <div
+        className={cn(
+          'flex border-b border-gray-200 bg-gray-50 px-2 transition-all duration-300 overflow-hidden',
+          splitView ? 'max-h-0 opacity-0 border-b-0' : 'max-h-12 opacity-100'
+        )}
+      >
         <button
           onClick={() => setActiveTab('info')}
           className={cn(
@@ -155,169 +181,331 @@ export function ExtractionDrawer({ document, isOpen }: ExtractionDrawerProps) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
-        {activeTab === 'info' ? (
-          <div className="p-5 space-y-5">
-            {/* Status & Confidence */}
-            <div className="flex items-center justify-between">
-              <StatusBadge status={document.status} size="md" />
-              <ConfidenceBadge score={document.confidence_score} />
-            </div>
-
-            {/* Main Info Grid */}
-            <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <InfoItem icon={Building2} label="Fournisseur" value={document.fournisseur} />
-                <InfoItem icon={Hash} label="Type" value={document.categorie_fournisseur} />
-                <InfoItem icon={Calendar} label="Date facture" value={formatDate(document.date_document)} />
-                <InfoItem icon={Calendar} label="Échéance" value={formatDate(document.date_echeance)} highlight />
-                {document.operateur && (
-                  <InfoItem icon={User} label="Opérateur" value={document.operateur} />
-                )}
-                {document.heure_document && (
-                  <InfoItem icon={Clock} label="Heure" value={document.heure_document} />
-                )}
-              </div>
-            </div>
-
-            {/* Montants */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Montants</h4>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="bg-slate-50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-gray-500 mb-1">Total HT</p>
-                  <p className="text-sm font-bold text-gray-800">{formatFullCurrency(totalHT)}</p>
+      <div className="flex-1 overflow-hidden">
+        {splitView ? (
+          /* ========== MODE SPLIT VIEW ========== */
+          <div className="flex h-full transition-all duration-300">
+            {/* PDF Panel - Gauche */}
+            <div className="w-1/2 flex flex-col border-r border-gray-200">
+              {/* PDF Toolbar */}
+              <div className="flex items-center justify-between px-3 py-2 bg-gray-100 border-b border-gray-200 shrink-0">
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleZoomOut}
+                    className="p-1 rounded hover:bg-gray-200 text-gray-600 transition"
+                    title="Zoom arrière"
+                  >
+                    <ZoomOut className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="text-xs text-gray-600 w-10 text-center">{Math.round(scale * 100)}%</span>
+                  <button
+                    onClick={handleZoomIn}
+                    className="p-1 rounded hover:bg-gray-200 text-gray-600 transition"
+                    title="Zoom avant"
+                  >
+                    <ZoomIn className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-                <div className="bg-slate-50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-gray-500 mb-1">Total TVA</p>
-                  <p className="text-sm font-bold text-gray-800">{formatFullCurrency(totalTVA)}</p>
-                </div>
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-3 text-center border border-blue-100">
-                  <p className="text-xs text-blue-600 mb-1">Net à payer</p>
-                  <p className="text-sm font-bold text-blue-700">{formatFullCurrency(document.net_a_payer)}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* TVA Breakdown */}
-            {tvaData.length > 0 && (
-              <div className="space-y-3">
-                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Ventilation TVA</h4>
-                <TVARecapTable data={tvaData} />
-              </div>
-            )}
-
-            {/* Technical Info */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Informations techniques</h4>
-              <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Template utilisé</span>
-                  <span className="font-mono text-gray-700">{document.template_used || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Date extraction</span>
-                  <span className="text-gray-700">{formatDate(document.date_extraction)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Dernière modification</span>
-                  <span className="text-gray-700">{formatDate(document.date_derniere_modification)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Fichier</span>
-                  <span className="text-gray-700 truncate max-w-[180px]" title={document.nom_fichier}>
-                    {document.nom_fichier}
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handlePrevPage}
+                    disabled={pageNumber <= 1}
+                    className="p-1 rounded hover:bg-gray-200 text-gray-600 transition disabled:opacity-40"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="text-xs text-gray-600 min-w-[50px] text-center">
+                    {pageNumber}/{numPages || '?'}
                   </span>
+                  <button
+                    onClick={handleNextPage}
+                    disabled={pageNumber >= numPages}
+                    className="p-1 rounded hover:bg-gray-200 text-gray-600 transition disabled:opacity-40"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <button
+                  onClick={handleOpenInNewWindow}
+                  className="p-1 rounded hover:bg-gray-200 text-gray-600 transition"
+                  title="Ouvrir dans une nouvelle fenêtre"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              {/* PDF Viewer */}
+              <div className="flex-1 overflow-auto bg-gray-200 flex items-start justify-center p-2">
+                {pdfError ? (
+                  <div className="text-center text-gray-500 py-10">
+                    <FileText className="w-10 h-10 mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm">{pdfError}</p>
+                    <button
+                      onClick={handleOpenInNewWindow}
+                      className="mt-2 text-blue-600 hover:underline text-xs flex items-center gap-1 mx-auto"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      Ouvrir le PDF
+                    </button>
+                  </div>
+                ) : (
+                  <Document
+                    file={pdfUrl}
+                    onLoadSuccess={onDocumentLoadSuccess}
+                    onLoadError={onDocumentLoadError}
+                    loading={
+                      <div className="flex items-center justify-center h-40">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
+                      </div>
+                    }
+                  >
+                    <Page
+                      pageNumber={pageNumber}
+                      scale={scale * 0.9}
+                      className="shadow-lg"
+                      renderTextLayer={false}
+                      renderAnnotationLayer={false}
+                    />
+                  </Document>
+                )}
+              </div>
+            </div>
+
+            {/* Info Panel - Droite */}
+            <div className="w-1/2 overflow-y-auto">
+              <div className="p-4 space-y-4">
+                {/* Status & Confidence */}
+                <div className="flex items-center justify-between">
+                  <StatusBadge status={document.status} size="md" />
+                  <ConfidenceBadge score={document.confidence_score} />
+                </div>
+
+                {/* Main Info Grid - Compact */}
+                <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <InfoItem icon={Building2} label="Fournisseur" value={document.fournisseur} />
+                    <InfoItem icon={Hash} label="Type" value={document.categorie_fournisseur} />
+                    <InfoItem icon={Calendar} label="Date" value={formatDate(document.date_document)} />
+                    <InfoItem icon={Calendar} label="Échéance" value={formatDate(document.date_echeance)} highlight />
+                  </div>
+                </div>
+
+                {/* Montants - Compact */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Montants</h4>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <div className="bg-slate-50 rounded-lg p-2 text-center">
+                      <p className="text-[10px] text-gray-500">Total HT</p>
+                      <p className="text-xs font-bold text-gray-800">{formatFullCurrency(totalHT)}</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-lg p-2 text-center">
+                      <p className="text-[10px] text-gray-500">Total TVA</p>
+                      <p className="text-xs font-bold text-gray-800">{formatFullCurrency(totalTVA)}</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-2 text-center border border-blue-100">
+                      <p className="text-[10px] text-blue-600">Net à payer</p>
+                      <p className="text-xs font-bold text-blue-700">{formatFullCurrency(document.net_a_payer)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* TVA Breakdown */}
+                {tvaData.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Ventilation TVA</h4>
+                    <TVARecapTable data={tvaData} />
+                  </div>
+                )}
+
+                {/* Technical Info - Compact */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Infos techniques</h4>
+                  <div className="bg-gray-50 rounded-lg p-2 space-y-1.5 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Template</span>
+                      <span className="font-mono text-gray-700 text-[10px]">{document.template_used || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Extraction</span>
+                      <span className="text-gray-700">{formatDate(document.date_extraction)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Fichier</span>
+                      <span className="text-gray-700 truncate max-w-[140px]" title={document.nom_fichier}>
+                        {document.nom_fichier}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         ) : (
-          <div className="flex flex-col h-full">
-            {/* PDF Toolbar */}
-            <div className="flex items-center justify-between px-4 py-2 bg-gray-100 border-b border-gray-200">
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={handleZoomOut}
-                  className="p-1.5 rounded hover:bg-gray-200 text-gray-600 transition"
-                  title="Zoom arrière"
-                >
-                  <ZoomOut className="w-4 h-4" />
-                </button>
-                <span className="text-xs text-gray-600 w-12 text-center">{Math.round(scale * 100)}%</span>
-                <button
-                  onClick={handleZoomIn}
-                  className="p-1.5 rounded hover:bg-gray-200 text-gray-600 transition"
-                  title="Zoom avant"
-                >
-                  <ZoomIn className="w-4 h-4" />
-                </button>
+          /* ========== MODE ONGLETS (ORIGINAL) ========== */
+          <div className="overflow-y-auto h-full">
+            {activeTab === 'info' ? (
+              <div className="p-5 space-y-5">
+                {/* Status & Confidence */}
+                <div className="flex items-center justify-between">
+                  <StatusBadge status={document.status} size="md" />
+                  <ConfidenceBadge score={document.confidence_score} />
+                </div>
+
+                {/* Main Info Grid */}
+                <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <InfoItem icon={Building2} label="Fournisseur" value={document.fournisseur} />
+                    <InfoItem icon={Hash} label="Type" value={document.categorie_fournisseur} />
+                    <InfoItem icon={Calendar} label="Date facture" value={formatDate(document.date_document)} />
+                    <InfoItem icon={Calendar} label="Échéance" value={formatDate(document.date_echeance)} highlight />
+                    {document.operateur && (
+                      <InfoItem icon={User} label="Opérateur" value={document.operateur} />
+                    )}
+                    {document.heure_document && (
+                      <InfoItem icon={Clock} label="Heure" value={document.heure_document} />
+                    )}
+                  </div>
+                </div>
+
+                {/* Montants */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Montants</h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-slate-50 rounded-lg p-3 text-center">
+                      <p className="text-xs text-gray-500 mb-1">Total HT</p>
+                      <p className="text-sm font-bold text-gray-800">{formatFullCurrency(totalHT)}</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-lg p-3 text-center">
+                      <p className="text-xs text-gray-500 mb-1">Total TVA</p>
+                      <p className="text-sm font-bold text-gray-800">{formatFullCurrency(totalTVA)}</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-3 text-center border border-blue-100">
+                      <p className="text-xs text-blue-600 mb-1">Net à payer</p>
+                      <p className="text-sm font-bold text-blue-700">{formatFullCurrency(document.net_a_payer)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* TVA Breakdown */}
+                {tvaData.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Ventilation TVA</h4>
+                    <TVARecapTable data={tvaData} />
+                  </div>
+                )}
+
+                {/* Technical Info */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Informations techniques</h4>
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Template utilisé</span>
+                      <span className="font-mono text-gray-700">{document.template_used || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Date extraction</span>
+                      <span className="text-gray-700">{formatDate(document.date_extraction)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Dernière modification</span>
+                      <span className="text-gray-700">{formatDate(document.date_derniere_modification)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Fichier</span>
+                      <span className="text-gray-700 truncate max-w-[180px]" title={document.nom_fichier}>
+                        {document.nom_fichier}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
+            ) : (
+              <div className="flex flex-col h-full">
+                {/* PDF Toolbar */}
+                <div className="flex items-center justify-between px-4 py-2 bg-gray-100 border-b border-gray-200">
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={handleZoomOut}
+                      className="p-1.5 rounded hover:bg-gray-200 text-gray-600 transition"
+                      title="Zoom arrière"
+                    >
+                      <ZoomOut className="w-4 h-4" />
+                    </button>
+                    <span className="text-xs text-gray-600 w-12 text-center">{Math.round(scale * 100)}%</span>
+                    <button
+                      onClick={handleZoomIn}
+                      className="p-1.5 rounded hover:bg-gray-200 text-gray-600 transition"
+                      title="Zoom avant"
+                    >
+                      <ZoomIn className="w-4 h-4" />
+                    </button>
+                  </div>
 
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={handlePrevPage}
-                  disabled={pageNumber <= 1}
-                  className="p-1.5 rounded hover:bg-gray-200 text-gray-600 transition disabled:opacity-40"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <span className="text-xs text-gray-600 min-w-[60px] text-center">
-                  {pageNumber} / {numPages || '?'}
-                </span>
-                <button
-                  onClick={handleNextPage}
-                  disabled={pageNumber >= numPages}
-                  className="p-1.5 rounded hover:bg-gray-200 text-gray-600 transition disabled:opacity-40"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={handlePrevPage}
+                      disabled={pageNumber <= 1}
+                      className="p-1.5 rounded hover:bg-gray-200 text-gray-600 transition disabled:opacity-40"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-xs text-gray-600 min-w-[60px] text-center">
+                      {pageNumber} / {numPages || '?'}
+                    </span>
+                    <button
+                      onClick={handleNextPage}
+                      disabled={pageNumber >= numPages}
+                      className="p-1.5 rounded hover:bg-gray-200 text-gray-600 transition disabled:opacity-40"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
 
-              <button
-                onClick={handleOpenInNewWindow}
-                className="p-1.5 rounded hover:bg-gray-200 text-gray-600 transition"
-                title="Ouvrir dans une nouvelle fenêtre"
-              >
-                <Maximize2 className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* PDF Viewer */}
-            <div className="flex-1 overflow-auto bg-gray-200 flex items-start justify-center p-4">
-              {pdfError ? (
-                <div className="text-center text-gray-500 py-10">
-                  <FileText className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                  <p>{pdfError}</p>
                   <button
                     onClick={handleOpenInNewWindow}
-                    className="mt-3 text-blue-600 hover:underline text-sm flex items-center gap-1 mx-auto"
+                    className="p-1.5 rounded hover:bg-gray-200 text-gray-600 transition"
+                    title="Ouvrir dans une nouvelle fenêtre"
                   >
-                    <ExternalLink className="w-4 h-4" />
-                    Ouvrir le PDF directement
+                    <Maximize2 className="w-4 h-4" />
                   </button>
                 </div>
-              ) : (
-                <Document
-                  file={pdfUrl}
-                  onLoadSuccess={onDocumentLoadSuccess}
-                  onLoadError={onDocumentLoadError}
-                  loading={
-                    <div className="flex items-center justify-center h-40">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+
+                {/* PDF Viewer */}
+                <div className="flex-1 overflow-auto bg-gray-200 flex items-start justify-center p-4">
+                  {pdfError ? (
+                    <div className="text-center text-gray-500 py-10">
+                      <FileText className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                      <p>{pdfError}</p>
+                      <button
+                        onClick={handleOpenInNewWindow}
+                        className="mt-3 text-blue-600 hover:underline text-sm flex items-center gap-1 mx-auto"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Ouvrir le PDF directement
+                      </button>
                     </div>
-                  }
-                >
-                  <Page
-                    pageNumber={pageNumber}
-                    scale={scale}
-                    className="shadow-lg"
-                    renderTextLayer={false}
-                    renderAnnotationLayer={false}
-                  />
-                </Document>
-              )}
-            </div>
+                  ) : (
+                    <Document
+                      file={pdfUrl}
+                      onLoadSuccess={onDocumentLoadSuccess}
+                      onLoadError={onDocumentLoadError}
+                      loading={
+                        <div className="flex items-center justify-center h-40">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+                        </div>
+                      }
+                    >
+                      <Page
+                        pageNumber={pageNumber}
+                        scale={scale}
+                        className="shadow-lg"
+                        renderTextLayer={false}
+                        renderAnnotationLayer={false}
+                      />
+                    </Document>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
