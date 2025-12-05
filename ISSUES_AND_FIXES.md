@@ -24,7 +24,21 @@
 
 ## API - Endpoints Backend
 
-*(Aucune issue pour l'instant)*
+### [API-001] Extractions factures incorrectes - Toutes les factures
+- **Date** : 2025-12-06
+- **Symptôme** : Les valeurs extraites des factures semblent incorrectes (ex: facture 5405115051 affiche 295,89€)
+- **Cause** : À investiguer - problème potentiel dans le backend pdf-extractor
+- **Fichier** : Backend pdf-extractor (C:\pdf-extractor\app\)
+- **Données observées** :
+  - Document ID 1: 5405115051 → net_a_payer: 295.89€, 14 lignes extraites
+  - Confidence score: 100% mais valeurs potentiellement erronées
+  - Template utilisé: OCP_v1
+- **Investigation requise** :
+  - Comparer les valeurs extraites avec les PDFs originaux
+  - Vérifier le template OCP_v1 et ses règles d'extraction
+  - Tester l'endpoint `/documents/{id}/lignes` (retourne 404 actuellement)
+- **Fix** : En attente d'investigation
+- **Statut** : En cours
 
 ---
 
@@ -39,3 +53,4 @@
 | Date | Section | ID | Description |
 |------|---------|-----|-------------|
 | 2025-12-06 | UI | UI-001 | Ajout mode Split View drawer |
+| 2025-12-06 | API | API-001 | Extractions factures incorrectes |
