@@ -58,8 +58,8 @@ export const documentsService = {
   },
 
   getPdfUrl: (id: number): string => {
-    // Return direct URL for PDF viewing
-    return `${api.defaults.baseURL}/documents/${id}/pdf`
+    // Return direct URL for PDF viewing with cache-buster to prevent browser caching wrong PDF
+    return `${api.defaults.baseURL}/documents/${id}/pdf?_t=${Date.now()}`
   },
 
   getPdf: async (id: number): Promise<Blob> => {

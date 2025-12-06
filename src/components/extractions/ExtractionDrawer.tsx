@@ -260,6 +260,7 @@ export function ExtractionDrawer({ document, isOpen }: ExtractionDrawerProps) {
                   </div>
                 ) : (
                   <Document
+                    key={`pdf-${document.id}`}
                     file={pdfUrl}
                     onLoadSuccess={onDocumentLoadSuccess}
                     onLoadError={onDocumentLoadError}
@@ -496,6 +497,7 @@ export function ExtractionDrawer({ document, isOpen }: ExtractionDrawerProps) {
                     </div>
                   ) : (
                     <Document
+                      key={`pdf-split-${document.id}`}
                       file={pdfUrl}
                       onLoadSuccess={onDocumentLoadSuccess}
                       onLoadError={onDocumentLoadError}

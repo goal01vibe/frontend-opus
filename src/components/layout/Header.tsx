@@ -1,11 +1,11 @@
-import { Menu, FileText, Search } from 'lucide-react'
+import { Menu, FileText, Search, Code2 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { FloatingExtractionModule } from '../extraction/FloatingExtractionModule'
 import { useUIStore } from '@/stores/uiStore'
 import { adminService } from '@/services/admin'
 
 export function Header() {
-  const { setSearchOpen } = useUIStore()
+  const { setSearchOpen, devMode, toggleDevMode } = useUIStore()
 
   // Vérification réelle de la connexion au backend
   const { data: healthStatus } = useQuery({
@@ -46,6 +46,29 @@ export function Header() {
           <kbd className="hidden lg:inline-flex items-center gap-1 px-1.5 py-0.5 bg-white rounded border border-gray-300 text-xs text-gray-400">
             ⌘K
           </kbd>
+        </button>
+
+        {/* Dev Mode Switch */}
+        <button
+          onClick={toggleDevMode}
+          className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-200 ${
+            devMode
+              ? 'bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100'
+              : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
+          }`}
+          title={devMode ? 'Mode Dev actif - Logs complets' : 'Mode Prod - Logs minimes'}
+        >
+          <Code2 className={`w-4 h-4 ${devMode ? 'text-amber-600' : 'text-gray-400'}`} />
+          <span className="text-xs font-medium">
+            {devMode ? 'DEV' : 'PROD'}
+          </span>
+          <div className={`w-8 h-4 rounded-full relative transition-colors duration-200 ${
+            devMode ? 'bg-amber-400' : 'bg-gray-300'
+          }`}>
+            <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+              devMode ? 'translate-x-4' : 'translate-x-0.5'
+            }`} />
+          </div>
         </button>
 
         {/* Connection Status - Vérification RÉELLE */}

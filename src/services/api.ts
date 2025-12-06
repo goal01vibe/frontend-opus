@@ -16,6 +16,21 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+
+    // Add dev mode header from localStorage (persisted by zustand)
+    // Read directly from localStorage to avoid circular dependency with store
+    try {
+      const uiStorage = localStorage.getItem('ui-storage')
+      if (uiStorage) {
+        const parsed = JSON.parse(uiStorage)
+        if (parsed?.state?.devMode) {
+          config.headers['X-Debug-Mode'] = 'true'
+        }
+      }
+    } catch {
+      // Ignore parse errors
+    }
+
     return config
   },
   (error) => Promise.reject(error)

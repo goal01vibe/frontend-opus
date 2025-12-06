@@ -9,6 +9,7 @@ interface UIState {
   activeView: string
   drawerOpen: boolean
   selectedId: number | null
+  devMode: boolean
   setSidebarExpanded: (expanded: boolean) => void
   setSidebarHovered: (hovered: boolean) => void
   setTheme: (theme: UIState['theme']) => void
@@ -18,6 +19,8 @@ interface UIState {
   setSelectedId: (id: number | null) => void
   openDrawer: (id: number) => void
   closeDrawer: () => void
+  setDevMode: (enabled: boolean) => void
+  toggleDevMode: () => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -30,6 +33,7 @@ export const useUIStore = create<UIState>()(
       activeView: 'dashboard',
       drawerOpen: false,
       selectedId: null,
+      devMode: false,
       setSidebarExpanded: (expanded) => set({ sidebarExpanded: expanded }),
       setSidebarHovered: (hovered) => set({ sidebarHovered: hovered }),
       setTheme: (theme) => set({ theme }),
@@ -39,14 +43,17 @@ export const useUIStore = create<UIState>()(
       setSelectedId: (id) => set({ selectedId: id }),
       openDrawer: (id) => set({ drawerOpen: true, selectedId: id }),
       closeDrawer: () => set({ drawerOpen: false, selectedId: null }),
+      setDevMode: (enabled) => set({ devMode: enabled }),
+      toggleDevMode: () => set((state) => ({ devMode: !state.devMode })),
     }),
     {
       name: 'ui-storage',
-      // Ne pas persister l'état du drawer entre les sessions
+      // Persister devMode pour que le choix soit conservé entre sessions
       partialize: (state) => ({
         sidebarExpanded: state.sidebarExpanded,
         theme: state.theme,
         activeView: state.activeView,
+        devMode: state.devMode,
       }),
     }
   )
