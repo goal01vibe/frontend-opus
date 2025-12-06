@@ -40,6 +40,14 @@ export const useUIStore = create<UIState>()(
       openDrawer: (id) => set({ drawerOpen: true, selectedId: id }),
       closeDrawer: () => set({ drawerOpen: false, selectedId: null }),
     }),
-    { name: 'ui-storage' }
+    {
+      name: 'ui-storage',
+      // Ne pas persister l'état du drawer entre les sessions
+      partialize: (state) => ({
+        sidebarExpanded: state.sidebarExpanded,
+        theme: state.theme,
+        activeView: state.activeView,
+      }),
+    }
   )
 )
