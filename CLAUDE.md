@@ -1,20 +1,26 @@
 # Instructions Claude Code - Frontend Opus
 
-## Structure des Projets - 2 Repos Git Separés
+## 🔗 **PROJETS LIÉS - 3 REPOS GIT SÉPARÉS**
+
+| Projet | Chemin | Description | Port |
+|--------|--------|-------------|------|
+| **pdf-extractor** | `C:\pdf-extractor\` | API extraction PDF | 8000 |
+| **template-lab** | `C:\template-lab\` | Génération templates IA | 8002 |
+| **frontend_opus** | `C:\frontend_opus\` | Frontend React extraction (CE PROJET) | 5174 |
+
+**⚠️ 3 PROJETS DISTINCTS** = 3 repos Git = commits/push séparés.
+**💡 Toujours préciser le projet concerné dans les demandes.**
+
+---
+
+## 🗂️ **STRUCTURE DE CE PROJET**
 
 ```
-C:\frontend_opus\         # REPO GIT 1 - CE PROJET (Frontend React)
+C:\frontend_opus\         # FRONTEND EXTRACTION (CE PROJET)
 ├── src/                  # Code source React
 ├── package.json          # Dépendances npm
-└── .git/                 # Repo frontend_opus
-
-C:\pdf-extractor\         # REPO GIT 2 - API Backend (Docker)
-├── app/                  # API FastAPI (port 8000)
-├── docker-compose.yml    # Services Docker
-└── .git/                 # github.com/goal01vibe/pdf_extractor
+└── .git/                 # github.com/goal01vibe/frontend-opus
 ```
-
-**2 PROJETS DISTINCTS** = 2 repos Git = commits/push séparés.
 
 ---
 
