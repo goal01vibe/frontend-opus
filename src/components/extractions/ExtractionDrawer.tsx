@@ -24,9 +24,11 @@ import { cn, formatFullCurrency, formatDate } from '@/lib/utils'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { ConfidenceBadge } from '@/components/common/ConfidenceBadge'
 import { TVARecapTable } from '@/components/common/TVARecapTable'
+import { BDPMSummary } from '@/components/common/BDPMBadges'
 import { useUIStore } from '@/stores/uiStore'
 import { documentsService } from '@/services/documents'
-import type { Document as DocumentType } from '@/types'
+import { extractionsService } from '@/services/extractions'
+import type { Document as DocumentType, Extraction } from '@/types'
 
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
@@ -47,13 +49,24 @@ export function ExtractionDrawer({ document, isOpen }: ExtractionDrawerProps) {
   const [pdfError, setPdfError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'info' | 'pdf'>('info')
   const [splitView, setSplitView] = useState<boolean>(false)
+  const [extractions, setExtractions] = useState<Extraction[]>([])
 
   // Reset state when document changes
   useEffect(() => {
     setPageNumber(1)
     setScale(0.6)
     setPdfError(null)
+    setExtractions([])
   }, [document?.id])
+
+  // Load extractions for BDPM summary
+  useEffect(() => {
+    if (document?.id && isOpen) {
+      extractionsService.getByDocumentId(document.id)
+        .then(setExtractions)
+        .catch(console.error)
+    }
+  }, [document?.id, isOpen])
 
   if (!document) return null
 
@@ -328,6 +341,11 @@ export function ExtractionDrawer({ document, isOpen }: ExtractionDrawerProps) {
                   </div>
                 )}
 
+                {/* BDPM Summary */}
+                {extractions.length > 0 && (
+                  <BDPMSummary extractions={extractions} />
+                )}
+
                 {/* Technical Info - Compact */}
                 <div className="space-y-2">
                   <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Infos techniques</h4>
@@ -403,6 +421,11 @@ export function ExtractionDrawer({ document, isOpen }: ExtractionDrawerProps) {
                     <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Ventilation TVA</h4>
                     <TVARecapTable data={tvaData} />
                   </div>
+                )}
+
+                {/* BDPM Summary */}
+                {extractions.length > 0 && (
+                  <BDPMSummary extractions={extractions} />
                 )}
 
                 {/* Technical Info */}

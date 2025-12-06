@@ -15,6 +15,7 @@ import { ConfidenceBadge } from '@/components/common/ConfidenceBadge'
 import { useUIStore } from '@/stores/uiStore'
 import type { Document, Extraction } from '@/types'
 import { ArrowUpDown, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
+import { RemboursementBadge } from '@/components/common/BDPMBadges'
 
 interface ExtractionsTableProps {
   data: Document[]
@@ -256,6 +257,20 @@ export function ExtractionsTable({ data, extractions = [], viewMode = 'documents
         },
       },
       {
+        accessorKey: 'taux_remboursement',
+        header: 'Remb.',
+        size: 55,
+        cell: ({ row }) => (
+          <div className="flex justify-center">
+            <RemboursementBadge
+              taux={row.original.taux_remboursement}
+              typeProduit={row.original.type_produit}
+              size="sm"
+            />
+          </div>
+        ),
+      },
+      {
         accessorKey: 'taux_tva',
         header: 'TVA %',
         size: 70,
@@ -390,6 +405,7 @@ export function ExtractionsTable({ data, extractions = [], viewMode = 'documents
             return (
               <tr
                 key={row.id}
+                data-testid="document-row"
                 onClick={() => openDrawer(docId)}
                 className={cn(
                   'cursor-pointer transition-colors duration-150 border-l-4',

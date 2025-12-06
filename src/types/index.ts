@@ -49,6 +49,12 @@ export interface Document {
   alerts?: Alert[]
 }
 
+// Type produit BDPM
+export type TypeProduit = 'MEDICAMENT' | 'AUTRE' | null
+
+// Taux de remboursement BDPM
+export type TauxRemboursement = '100%' | '65%' | '30%' | '15%' | 'NR' | null
+
 // Extraction (ligne de facture)
 export interface Extraction {
   id: number
@@ -69,6 +75,9 @@ export interface Extraction {
   montant_ligne_ht: number
   confidence_score: number
   error_details?: string
+  // BDPM enrichment
+  type_produit?: TypeProduit
+  taux_remboursement?: TauxRemboursement
   bounding_box?: {
     page: number
     x1: number
