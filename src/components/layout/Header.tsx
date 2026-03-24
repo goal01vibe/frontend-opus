@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { FloatingExtractionModule } from '../extraction/FloatingExtractionModule'
 import { useUIStore } from '@/stores/uiStore'
 import { adminService } from '@/services/admin'
+import { bdpmService } from '@/services/bdpm'
 
 export function Header() {
   const { setSearchOpen, devMode, toggleDevMode } = useUIStore()
@@ -14,6 +15,15 @@ export function Header() {
     refetchInterval: 10000, // Revérifier toutes les 10 secondes
     retry: false,
     staleTime: 5000,
+  })
+
+  const { data: bdpmStatus } = useQuery({
+    queryKey: ['bdpm-status'],
+    queryFn: bdpmService.getStatus,
+    refetchInterval: 60000,
+    retry: false,
+    staleTime: 30000,
+    enabled: devMode,
   })
 
   const isConnected = healthStatus?.status === 'connected'
@@ -91,6 +101,29 @@ export function Header() {
             <span className="text-xs text-green-600">({healthStatus.latency}ms)</span>
           )}
         </div>
+
+        {/* BDPM Status Badge - Dev Mode Only */}
+        {devMode && bdpmStatus && (
+          <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border ${
+            bdpmStatus.has_error
+              ? 'bg-red-50 border-red-200'
+              : 'bg-emerald-50 border-emerald-200'
+          }`}>
+            <div className={`w-2 h-2 rounded-full ${
+              bdpmStatus.has_error ? 'bg-red-500' : 'bg-emerald-500'
+            }`} />
+            <span className={`text-xs font-medium ${
+              bdpmStatus.has_error ? 'text-red-700' : 'text-emerald-700'
+            }`}>
+              {bdpmStatus.has_error ? 'BDPM ✗' : `BDPM ✓ ${(bdpmStatus.medicaments_count || 0).toLocaleString('fr-FR')} CIP13`}
+            </span>
+            {bdpmStatus.last_check && (
+              <span className={`text-xs ${bdpmStatus.has_error ? 'text-red-500' : 'text-emerald-500'}`}>
+                · {new Date(bdpmStatus.last_check).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Extraction Module */}
         <FloatingExtractionModule />
