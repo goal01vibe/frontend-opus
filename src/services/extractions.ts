@@ -63,16 +63,20 @@ export const extractionsService = {
 
   extractBatch: async (
     files: File[],
-    options: { template?: string } = {}
+    options: { template?: string; confidence_threshold?: number } = {},
+    signal?: AbortSignal,
   ): Promise<{ batch_id: string; task_ids: string[]; stream_endpoint: string }> => {
     const formData = new FormData()
     files.forEach(file => formData.append('files', file))
     if (options.template) {
       formData.append('template', options.template)
     }
-
+    if (options.confidence_threshold !== undefined) {
+      formData.append('confidence_threshold', String(options.confidence_threshold))
+    }
     const { data } = await api.post('/extract-batch-worker', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
+      signal,
     })
     return data
   },

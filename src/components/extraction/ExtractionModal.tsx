@@ -1,12 +1,13 @@
-import { useCallback, useState, useMemo, useEffect, useRef } from 'react'
+import { useCallback, useState, useMemo, useRef } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { X, Upload, FileText, Loader2, AlertTriangle, CheckCircle, XCircle, RotateCcw, Trash2, Wifi, WifiOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useExtractionStore } from '@/stores/extractionStore'
-import { extractionsService } from '@/services/extractions'
 import { useAdminStream, type BatchProgressEvent } from '@/hooks/useAdminStream'
+import { useChunkedUpload } from '@/hooks/useChunkedUpload'
 import { ErrorBadge } from './ErrorDisplay'
 import { ProgressSummary } from './LiveMetrics'
+import { GlobalUploadProgress } from './GlobalUploadProgress'
 import type { FileStatus, ExtractionErrorCode } from '@/types'
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
@@ -16,17 +17,55 @@ interface LocalFileStatus extends Omit<FileStatus, 'file'> {
 }
 
 export function ExtractionModal() {
-  const { isUploadModalOpen, closeUploadModal, addBatch, removeBatch, incrementBatchCompleted, incrementBatchFailed, incrementCompleted, incrementFailed, incrementPartial } = useExtractionStore()
+  const { isUploadModalOpen, closeUploadModal, removeBatch, incrementBatchCompleted, incrementBatchFailed, incrementCompleted, incrementFailed, incrementPartial } = useExtractionStore()
   const [files, setFiles] = useState<LocalFileStatus[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [confidence, setConfidence] = useState(60)
-  const currentBatchIdRef = useRef<string | null>(null)
+  const activeBatchIdsRef = useRef<Set<string>>(new Set())
+  const allChunksSentRef = useRef(false)
+
+  const CHUNK_SIZE = 50
+
+  const {
+    startUpload: startChunkedUpload,
+    cancel: cancelUpload,
+    reset: resetUpload,
+    chunksUploaded,
+    totalChunks,
+  } = useChunkedUpload({
+    confidenceThreshold: confidence,
+    chunkSize: CHUNK_SIZE,
+    onBatchIdCreated: useCallback((batchId: string) => {
+      activeBatchIdsRef.current.add(batchId)
+    }, []),
+    onChunkSent: useCallback((_batchId: string, _chunkIndex: number) => {
+      // Mark next CHUNK_SIZE uploading files as processing
+      // Status guard skips already-processing files from previous chunks
+      setFiles((prev) => {
+        let remaining = CHUNK_SIZE
+        return prev.map((f) => {
+          if (f.status === 'uploading' && remaining > 0) {
+            remaining--
+            return { ...f, status: 'processing' as const }
+          }
+          return f
+        })
+      })
+    }, []),
+    onAllChunksSent: useCallback(() => {
+      allChunksSentRef.current = true
+      // Check if all batches already done
+      if (activeBatchIdsRef.current.size === 0) {
+        setIsUploading(false)
+      }
+    }, []),
+  })
 
   // Utiliser le stream admin global (connexion permanente)
-  const { isConnected, onBatchProgress } = useAdminStream({
+  const { isConnected } = useAdminStream({
     onBatchProgress: useCallback((data: BatchProgressEvent) => {
-      // Ne traiter que les événements du batch actuel
-      if (!currentBatchIdRef.current || data.batch_id !== currentBatchIdRef.current) {
+      // Ne traiter que les événements des batchs actifs
+      if (!activeBatchIdsRef.current.has(data.batch_id)) {
         return
       }
 
@@ -101,13 +140,14 @@ export function ExtractionModal() {
           break
 
         case 'batch_complete':
-          console.log('Batch terminé:', data)
-          // Retirer le batch de la liste des actifs
           if (data.batch_id) {
             removeBatch(data.batch_id)
+            activeBatchIdsRef.current.delete(data.batch_id)
           }
-          currentBatchIdRef.current = null
-          setIsUploading(false)
+          // Check global termination: all chunks sent AND no active batches left
+          if (allChunksSentRef.current && activeBatchIdsRef.current.size === 0) {
+            setIsUploading(false)
+          }
           break
       }
     }, [incrementCompleted, incrementFailed, incrementPartial, incrementBatchCompleted, incrementBatchFailed, removeBatch]),
@@ -199,69 +239,56 @@ export function ExtractionModal() {
 
   // Cleanup on modal close
   const handleClose = useCallback(() => {
-    currentBatchIdRef.current = null
+    if (isUploading) {
+      cancelUpload()
+    }
+    activeBatchIdsRef.current = new Set()
+    allChunksSentRef.current = false
+    resetUpload()
     closeUploadModal()
-  }, [closeUploadModal])
+  }, [closeUploadModal, isUploading, cancelUpload, resetUpload])
 
   const handleExtract = async () => {
     if (pendingFiles.length === 0) return
 
     setIsUploading(true)
+    allChunksSentRef.current = false
+    activeBatchIdsRef.current = new Set()
 
     // Mark all pending as uploading
     setFiles((prev) =>
       prev.map((f) => (f.status === 'pending' ? { ...f, status: 'uploading' as const } : f))
     )
 
-    try {
-      const filesToUpload = pendingFiles.map((f) => f.file)
+    const filesToUpload = pendingFiles.map((f) => f.file)
 
-      // Call batch extraction API
-      const result = await extractionsService.extractBatch(filesToUpload, {
-        template: undefined, // Auto-detect
-      })
-
-      // Stocker le batch_id pour filtrer les événements SSE
-      currentBatchIdRef.current = result.batch_id
-
-      // Create batch in store
-      addBatch({
-        batch_id: result.batch_id,
-        total_files: filesToUpload.length,
-        completed: 0,
-        failed: 0,
-        workers_active: 0,
-        started_at: new Date().toISOString(),
-      })
-
-      // Update file statuses to processing
-      setFiles((prev) =>
-        prev.map((f) => (f.status === 'uploading' ? { ...f, status: 'processing' as const } : f))
-      )
-
-      // Les événements SSE seront reçus via useAdminStream (connexion permanente)
-      console.log('Batch lancé:', result.batch_id, '- En attente des événements SSE...')
-
-    } catch (error) {
-      // Mark all uploading files as failed
+    // Helper to mark a chunk's files as failed
+    const markChunkFilesFailed = (chunkFiles: File[], message: string) => {
+      const chunkFilenames = new Set(chunkFiles.map((f) => f.name))
       setFiles((prev) =>
         prev.map((f) =>
-          f.status === 'uploading' || f.status === 'processing'
+          (f.status === 'uploading' || f.status === 'processing') && chunkFilenames.has(f.filename)
             ? {
                 ...f,
                 status: 'failed' as const,
                 error: {
                   code: 'ERROR_NETWORK' as const,
-                  message: 'Erreur de connexion au serveur',
+                  message,
                   recoverable: true,
                 },
               }
             : f
         )
       )
-      setIsUploading(false)
-      currentBatchIdRef.current = null
     }
+
+    // Start chunked upload — marks files as processing when each chunk succeeds
+    await startChunkedUpload(filesToUpload, markChunkFilesFailed)
+
+    // After loop: mark remaining 'uploading' files as 'processing' (they were sent successfully)
+    setFiles((prev) =>
+      prev.map((f) => (f.status === 'uploading' ? { ...f, status: 'processing' as const } : f))
+    )
   }
 
   const getStatusIcon = (status: LocalFileStatus['status']) => {
@@ -371,6 +398,18 @@ export function ExtractionModal() {
                   Tout supprimer
                 </button>
               </div>
+
+              {/* Global progress for chunked uploads */}
+              {isUploading && files.length > CHUNK_SIZE && (
+                <GlobalUploadProgress
+                  totalFiles={files.length}
+                  completedFiles={completedFiles.length}
+                  failedFiles={failedFiles.length}
+                  totalChunks={totalChunks}
+                  chunksUploaded={chunksUploaded}
+                  onCancel={cancelUpload}
+                />
+              )}
 
               <div className="max-h-60 overflow-y-auto space-y-2 border rounded-lg p-2">
                 {files.map((file) => (
