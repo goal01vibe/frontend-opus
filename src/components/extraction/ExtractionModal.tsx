@@ -33,7 +33,6 @@ export function ExtractionModal() {
     chunksUploaded,
     totalChunks,
   } = useChunkedUpload({
-    confidenceThreshold: confidence,
     chunkSize: CHUNK_SIZE,
     onBatchIdCreated: useCallback((batchId: string) => {
       activeBatchIdsRef.current.add(batchId)
@@ -283,7 +282,7 @@ export function ExtractionModal() {
     }
 
     // Start chunked upload — marks files as processing when each chunk succeeds
-    await startChunkedUpload(filesToUpload, markChunkFilesFailed)
+    await startChunkedUpload(filesToUpload, markChunkFilesFailed, confidence)
 
     // After loop: mark remaining 'uploading' files as 'processing' (they were sent successfully)
     setFiles((prev) =>

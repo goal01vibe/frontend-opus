@@ -8,7 +8,6 @@ const CHUNK_TIMEOUT_MS = 60_000
 
 interface UseChunkedUploadOptions {
   chunkSize?: number
-  confidenceThreshold?: number
   onChunkSent?: (batchId: string, chunkIndex: number) => void
   onAllChunksSent?: () => void
   onChunkError?: (chunkIndex: number, error: Error) => void
@@ -29,7 +28,6 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
 export function useChunkedUpload(options: UseChunkedUploadOptions = {}) {
   const {
     chunkSize = DEFAULT_CHUNK_SIZE,
-    confidenceThreshold,
     onChunkSent,
     onAllChunksSent,
     onChunkError,
@@ -49,6 +47,7 @@ export function useChunkedUpload(options: UseChunkedUploadOptions = {}) {
   const startUpload = useCallback(async (
     files: File[],
     markChunkFilesFailed: (chunkFiles: File[], message: string) => void,
+    confidenceThreshold?: number,
   ) => {
     const chunks = chunkArray(files, chunkSize)
     setTotalChunks(chunks.length)
@@ -69,23 +68,20 @@ export function useChunkedUpload(options: UseChunkedUploadOptions = {}) {
         break
       }
 
+      // Create a per-chunk timeout signal combined with the cancel signal
+      const timeoutController = new AbortController()
+      const timeoutId = setTimeout(() => timeoutController.abort(), CHUNK_TIMEOUT_MS)
+
+      // If main abort fires, also abort this chunk
+      const onMainAbort = () => timeoutController.abort()
+      abortControllerRef.current.signal.addEventListener('abort', onMainAbort)
+
       try {
-        // Create a per-chunk timeout signal combined with the cancel signal
-        const timeoutController = new AbortController()
-        const timeoutId = setTimeout(() => timeoutController.abort(), CHUNK_TIMEOUT_MS)
-
-        // If main abort fires, also abort this chunk
-        const onMainAbort = () => timeoutController.abort()
-        abortControllerRef.current.signal.addEventListener('abort', onMainAbort)
-
         const result = await extractionsService.extractBatch(
           chunks[i],
           { template: undefined, confidence_threshold: confidenceThreshold },
           timeoutController.signal,
         )
-
-        clearTimeout(timeoutId)
-        abortControllerRef.current.signal.removeEventListener('abort', onMainAbort)
 
         // Register batch in store for FloatingExtractionModule
         addBatch({
@@ -108,6 +104,9 @@ export function useChunkedUpload(options: UseChunkedUploadOptions = {}) {
         markChunkFilesFailed(chunks[i], message)
         onChunkError?.(i, error instanceof Error ? error : new Error(message))
         setChunksUploaded(i + 1)
+      } finally {
+        clearTimeout(timeoutId)
+        abortControllerRef.current?.signal.removeEventListener('abort', onMainAbort)
       }
     }
 
