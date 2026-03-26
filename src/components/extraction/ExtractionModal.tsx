@@ -1,4 +1,5 @@
 import { useCallback, useState, useMemo, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useDropzone } from 'react-dropzone'
 import { X, Upload, FileText, Loader2, AlertTriangle, CheckCircle, XCircle, RotateCcw, Trash2, Wifi, WifiOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -18,6 +19,7 @@ interface LocalFileStatus extends Omit<FileStatus, 'file'> {
 
 export function ExtractionModal() {
   const { isUploadModalOpen, closeUploadModal, removeBatch, incrementBatchCompleted, incrementBatchFailed, incrementCompleted, incrementFailed, incrementPartial } = useExtractionStore()
+  const queryClient = useQueryClient()
   const [files, setFiles] = useState<LocalFileStatus[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [confidence, setConfidence] = useState(60)
@@ -143,6 +145,8 @@ export function ExtractionModal() {
             removeBatch(data.batch_id)
             activeBatchIdsRef.current.delete(data.batch_id)
           }
+          // Refresh documents/extractions data in background pages
+          queryClient.invalidateQueries({ queryKey: ['documents'] })
           // Check global termination: all chunks sent AND no active batches left
           if (allChunksSentRef.current && activeBatchIdsRef.current.size === 0) {
             setIsUploading(false)
@@ -244,8 +248,9 @@ export function ExtractionModal() {
     activeBatchIdsRef.current = new Set()
     allChunksSentRef.current = false
     resetUpload()
+    queryClient.invalidateQueries({ queryKey: ['documents'] })
     closeUploadModal()
-  }, [closeUploadModal, isUploading, cancelUpload, resetUpload])
+  }, [closeUploadModal, isUploading, cancelUpload, resetUpload, queryClient])
 
   const handleCancelUpload = useCallback(() => {
     cancelUpload()
