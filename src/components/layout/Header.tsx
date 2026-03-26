@@ -1,12 +1,15 @@
-import { Menu, FileText, Search, Code2 } from 'lucide-react'
+import { Menu, FileText, Search, Code2, Trash2 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { FloatingExtractionModule } from '../extraction/FloatingExtractionModule'
 import { useUIStore } from '@/stores/uiStore'
 import { adminService } from '@/services/admin'
 import { bdpmService } from '@/services/bdpm'
+import { useState } from 'react'
+import { ClearDatabaseDialog } from './ClearDatabaseDialog'
 
 export function Header() {
   const { setSearchOpen, devMode, toggleDevMode } = useUIStore()
+  const [showClearDialog, setShowClearDialog] = useState(false)
 
   // Vérification réelle de la connexion au backend
   const { data: healthStatus } = useQuery({
@@ -125,6 +128,18 @@ export function Header() {
           </div>
         )}
 
+        {/* Clear Database - Dev Mode Only */}
+        {devMode && (
+          <button
+            onClick={() => setShowClearDialog(true)}
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+            title="Vider la base de données"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span className="text-xs font-medium">Vider DB</span>
+          </button>
+        )}
+
         {/* Extraction Module */}
         <FloatingExtractionModule />
 
@@ -133,6 +148,7 @@ export function Header() {
           AD
         </div>
       </div>
+      <ClearDatabaseDialog open={showClearDialog} onClose={() => setShowClearDialog(false)} />
     </header>
   )
 }
