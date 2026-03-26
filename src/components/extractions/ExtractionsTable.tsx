@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -13,6 +13,7 @@ import { formatFullCurrency, formatDate, formatCurrency } from '@/lib/utils'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { ConfidenceBadge } from '@/components/common/ConfidenceBadge'
 import { useUIStore } from '@/stores/uiStore'
+import { useFilterStore } from '@/stores/filterStore'
 import type { Document, Extraction } from '@/types'
 import { ArrowUpDown, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
 import { RemboursementBadge } from '@/components/common/BDPMBadges'
@@ -25,7 +26,21 @@ interface ExtractionsTableProps {
 }
 
 export function ExtractionsTable({ data, extractions = [], viewMode = 'documents', isLoading }: ExtractionsTableProps) {
-  const [sorting, setSorting] = useState<SortingState>([])
+  const { sortBy, sortOrder, setSort } = useFilterStore()
+
+  // Convert store sort to TanStack SortingState
+  const sorting: SortingState = sortBy
+    ? [{ id: sortBy, desc: sortOrder === 'desc' }]
+    : []
+
+  const handleSortingChange = (updater: any) => {
+    const newSorting = typeof updater === 'function' ? updater(sorting) : updater
+    if (newSorting.length > 0) {
+      setSort(newSorting[0].id, newSorting[0].desc ? 'desc' : 'asc')
+    } else {
+      setSort('date_extraction', 'desc')
+    }
+  }
   const { openDrawer, selectedId } = useUIStore()
 
   // For documents view: group by document ID
@@ -321,7 +336,8 @@ export function ExtractionsTable({ data, extractions = [], viewMode = 'documents
     data,
     columns: documentColumns,
     state: { sorting },
-    onSortingChange: setSorting,
+    onSortingChange: handleSortingChange,
+    manualSorting: true,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -331,7 +347,8 @@ export function ExtractionsTable({ data, extractions = [], viewMode = 'documents
     data: extractions,
     columns: extractionColumns,
     state: { sorting },
-    onSortingChange: setSorting,
+    onSortingChange: handleSortingChange,
+    manualSorting: true,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
