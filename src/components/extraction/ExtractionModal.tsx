@@ -247,6 +247,19 @@ export function ExtractionModal() {
     closeUploadModal()
   }, [closeUploadModal, isUploading, cancelUpload, resetUpload])
 
+  const handleCancelUpload = useCallback(() => {
+    cancelUpload()
+    setIsUploading(false)
+    // Reset unsent files back to pending for retry
+    setFiles((prev) =>
+      prev.map((f) =>
+        f.status === 'uploading'
+          ? { ...f, status: 'pending' as const, progress: 0 }
+          : f
+      )
+    )
+  }, [cancelUpload])
+
   const handleExtract = async () => {
     if (pendingFiles.length === 0) return
 
@@ -406,7 +419,7 @@ export function ExtractionModal() {
                   failedFiles={failedFiles.length}
                   totalChunks={totalChunks}
                   chunksUploaded={chunksUploaded}
-                  onCancel={cancelUpload}
+                  onCancel={handleCancelUpload}
                 />
               )}
 

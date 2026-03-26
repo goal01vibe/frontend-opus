@@ -61,10 +61,6 @@ export function useChunkedUpload(options: UseChunkedUploadOptions = {}) {
     for (let i = 0; i < chunks.length; i++) {
       // Check cancellation before each chunk
       if (cancelledRef.current) {
-        // Mark remaining files as failed
-        for (let j = i; j < chunks.length; j++) {
-          markChunkFilesFailed(chunks[j], 'Upload annule')
-        }
         break
       }
 
