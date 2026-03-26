@@ -11,7 +11,7 @@ export function Fournisseurs() {
     queryFn: () => documentsService.getAll({ limit: 1000 }),
   })
 
-  const documents = docsData?.items || []
+  const documents = docsData?.documents || []
 
   // Aggregate by fournisseur
   const fournisseurs = useMemo(() => {

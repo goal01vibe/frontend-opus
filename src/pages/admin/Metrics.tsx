@@ -29,7 +29,7 @@ export function AdminMetrics() {
   })
 
   const isLoading = metricsLoading || statsLoading || docsLoading
-  const documents = docsData?.items || []
+  const documents = docsData?.documents || []
 
   // Build hourly timeline from real documents (last 24 hours)
   const hourlyData = (() => {
