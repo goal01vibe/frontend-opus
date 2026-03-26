@@ -23,6 +23,8 @@ export function Extractions() {
     setPage, setPerPage,
   } = useFilterStore()
   const [viewMode, setViewMode] = useState<ViewMode>('documents')
+  const [linesPage, setLinesPage] = useState(1)
+  const [linesPerPage, setLinesPerPage] = useState(50)
   const { exportToXLSX, exportToCSV } = useExport()
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -30,6 +32,11 @@ export function Extractions() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 })
   }, [page])
+
+  // Reset lines page when filters change
+  useEffect(() => {
+    setLinesPage(1)
+  }, [activeType, searchTerm, selectedFournisseur])
 
   // Build query params from store state
   const queryParams = {
@@ -52,18 +59,28 @@ export function Extractions() {
     placeholderData: (prev) => prev,
   })
 
-  // Fetch extractions for lines view
+  // Build extractions query params
+  const extractionsParams = {
+    offset: (linesPage - 1) * linesPerPage,
+    limit: linesPerPage,
+    categorie_fournisseur: activeType,
+    search: searchTerm || undefined,
+  }
+
+  // Fetch extractions for lines view (server-side pagination)
   const { data: extractionsData, isLoading: loadingExtractions } = useQuery({
-    queryKey: ['extractions', { limit: 1000 }],
-    queryFn: () => extractionsService.getAll({ limit: 1000 }),
+    queryKey: ['extractions', extractionsParams],
+    queryFn: () => extractionsService.getAll(extractionsParams),
     enabled: viewMode === 'lines',
+    placeholderData: (prev) => prev,
   })
 
   const documents = serverResponse?.documents || []
   const totalCount = serverResponse?.total_count || 0
   const aggregations = serverResponse?.aggregations
   const fournisseurs = serverResponse?.fournisseurs || []
-  const allExtractions = extractionsData?.items || []
+  const allExtractions = extractionsData?.extractions || []
+  const extractionsTotalCount = extractionsData?.total_count || 0
 
   // Tab counts from server aggregations
   const counts = {
@@ -161,7 +178,7 @@ export function Extractions() {
             {viewMode === 'documents' ? 'Documents' : 'Lignes extraites'}
           </span>
           <span className="text-lg font-bold text-gray-800">
-            {isLoading ? '...' : viewMode === 'documents' ? totals.count.toLocaleString('fr-FR') : allExtractions.length}
+            {isLoading ? '...' : viewMode === 'documents' ? totals.count.toLocaleString('fr-FR') : extractionsTotalCount.toLocaleString('fr-FR')}
           </span>
         </div>
         <div className="w-px h-8 bg-gray-100" />
@@ -224,7 +241,7 @@ export function Extractions() {
           </div>
         </div>
 
-        {/* Pagination (documents view only) */}
+        {/* Pagination (documents view) */}
         {viewMode === 'documents' && !isLoading && totalCount > 0 && (
           <Pagination
             page={page}
@@ -232,6 +249,17 @@ export function Extractions() {
             totalCount={totalCount}
             onPageChange={setPage}
             onPerPageChange={setPerPage}
+          />
+        )}
+
+        {/* Pagination (lines view) */}
+        {viewMode === 'lines' && !isLoading && extractionsTotalCount > 0 && (
+          <Pagination
+            page={linesPage}
+            perPage={linesPerPage}
+            totalCount={extractionsTotalCount}
+            onPageChange={setLinesPage}
+            onPerPageChange={(pp) => { setLinesPerPage(pp); setLinesPage(1) }}
           />
         )}
 

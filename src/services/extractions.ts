@@ -1,5 +1,5 @@
 import api from './api'
-import type { Extraction, ExtractResponse, PaginatedResponse } from '@/types'
+import type { Extraction, ExtractResponse } from '@/types'
 import { API_URL } from '@/lib/constants'
 
 interface ExtractionsParams {
@@ -9,23 +9,23 @@ interface ExtractionsParams {
   template?: string
   designation_search?: string
   code_article?: string
+  categorie_fournisseur?: string
+  search?: string
+  sort_by?: string
+  sort_order?: string
 }
 
 interface ExtractionsApiResponse {
-  count: number
+  total_count: number
+  offset: number
+  limit: number
   extractions: Extraction[]
 }
 
 export const extractionsService = {
-  getAll: async (params: ExtractionsParams = {}): Promise<PaginatedResponse<Extraction>> => {
+  getAll: async (params: ExtractionsParams = {}): Promise<ExtractionsApiResponse> => {
     const { data } = await api.get<ExtractionsApiResponse>('/extractions', { params })
-    return {
-      items: data.extractions || [],
-      total: data.count || 0,
-      page: 1,
-      limit: params.limit || 100,
-      pages: Math.ceil((data.count || 0) / (params.limit || 100))
-    }
+    return data
   },
 
   getByDocumentId: async (documentId: number): Promise<Extraction[]> => {
