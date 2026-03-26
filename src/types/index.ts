@@ -85,6 +85,28 @@ export interface Extraction {
     x2: number
     y2: number
   }
+  // Document metadata (returned by GET /extractions)
+  document_name?: string
+  numero_facture?: string
+  date_document?: string
+  date_extraction?: string
+  date_derniere_modification?: string
+  date_echeance?: string
+  status?: DocumentStatus
+  fournisseur?: string
+  categorie_fournisseur?: FournisseurType
+  net_a_payer?: number
+  template_used?: string
+  operateur?: string
+  heure_document?: string
+  base_ht_tva_2_1?: number
+  base_ht_tva_5_5?: number
+  base_ht_tva_10?: number
+  base_ht_tva_20?: number
+  total_tva_2_1?: number
+  total_tva_5_5?: number
+  total_tva_10?: number
+  total_tva_20?: number
 }
 
 // Alert

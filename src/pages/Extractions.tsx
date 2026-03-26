@@ -12,8 +12,41 @@ import { extractionsService } from '@/services/extractions'
 import { formatCurrency } from '@/lib/utils'
 import { Download, Plus, LayoutList, FileText, Loader2 } from 'lucide-react'
 import { useExport } from '@/hooks/useExport'
+import type { Document as DocumentType, Extraction } from '@/types'
 
 type ViewMode = 'documents' | 'lines'
+
+function buildDocumentFromExtraction(ext: Extraction | undefined): DocumentType | null {
+  if (!ext) return null
+  return {
+    id: ext.document_id,
+    nom_fichier: ext.document_name || '',
+    hash_fichier: '',
+    date_extraction: ext.date_extraction || '',
+    date_derniere_modification: ext.date_derniere_modification || '',
+    chemin_source: '',
+    status: ext.status || 'NEEDS_REVIEW',
+    template_used: ext.template_used || '',
+    confidence_score: ext.confidence_score || 0,
+    numero_facture: ext.numero_facture || '',
+    date_document: ext.date_document || '',
+    date_echeance: ext.date_echeance || '',
+    net_a_payer: ext.net_a_payer || 0,
+    type_document: 'FACTURE',
+    fournisseur: ext.fournisseur || '',
+    categorie_fournisseur: ext.categorie_fournisseur || 'GROSSISTE',
+    operateur: ext.operateur,
+    heure_document: ext.heure_document,
+    base_ht_tva_2_1: ext.base_ht_tva_2_1,
+    base_ht_tva_5_5: ext.base_ht_tva_5_5,
+    base_ht_tva_10: ext.base_ht_tva_10,
+    base_ht_tva_20: ext.base_ht_tva_20,
+    total_tva_2_1: ext.total_tva_2_1,
+    total_tva_5_5: ext.total_tva_5_5,
+    total_tva_10: ext.total_tva_10,
+    total_tva_20: ext.total_tva_20,
+  } as DocumentType
+}
 
 export function Extractions() {
   const { drawerOpen, selectedId } = useUIStore()
@@ -82,17 +115,6 @@ export function Extractions() {
   const allExtractions = extractionsData?.extractions || []
   const extractionsTotalCount = extractionsData?.total_count || 0
 
-  // Fetch selected document independently (needed when lines view search doesn't match documents)
-  const { data: fetchedDocument } = useQuery({
-    queryKey: ['document-detail', selectedId],
-    queryFn: async () => {
-      if (!selectedId) return null
-      const response = await documentsService.getAll({ search: String(selectedId), limit: 10 })
-      return response.documents?.find(d => d.id === selectedId) || null
-    },
-    enabled: !!selectedId && !documents.find(d => d.id === selectedId),
-  })
-
   // Tab counts from server aggregations
   const counts = {
     GROSSISTE: aggregations?.by_categorie?.GROSSISTE ?? 0,
@@ -107,7 +129,9 @@ export function Extractions() {
   }
 
   // Selected document
-  const selectedDocument = documents.find((d) => d.id === selectedId) || fetchedDocument || null
+  const selectedDocument = documents.find((d) => d.id === selectedId)
+    || buildDocumentFromExtraction(allExtractions.find(e => e.document_id === selectedId))
+    || null
 
   // Export handlers (use dedicated export endpoint)
   const handleExportCSV = useCallback(async () => {
