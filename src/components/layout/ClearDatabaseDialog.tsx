@@ -1,4 +1,3 @@
-// src/components/layout/ClearDatabaseDialog.tsx
 import { useState } from 'react'
 import { AlertTriangle, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -20,7 +19,8 @@ export function ClearDatabaseDialog({ open, onClose }: ClearDatabaseDialogProps)
     setIsDeleting(true)
     try {
       const result = await adminService.clearDatabase()
-      const { documents, extractions } = result.deleted
+      const documents = result?.deleted?.documents ?? 0
+      const extractions = result?.deleted?.extractions ?? 0
       toast.success(`Base vidée : ${documents} documents et ${extractions} extractions supprimés`)
       queryClient.invalidateQueries()
       onClose()
