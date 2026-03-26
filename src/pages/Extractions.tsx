@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { TypeTabs } from '@/components/layout/TypeTabs'
 import { DocumentFilters } from '@/components/filters/DocumentFilters'
@@ -24,6 +24,12 @@ export function Extractions() {
   } = useFilterStore()
   const [viewMode, setViewMode] = useState<ViewMode>('documents')
   const { exportToXLSX, exportToCSV } = useExport()
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  // Scroll to top when page changes
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 })
+  }, [page])
 
   // Build query params from store state
   const queryParams = {
@@ -193,6 +199,7 @@ export function Extractions() {
       {/* Split View: Table + Drawer */}
       <div className="flex-1 overflow-hidden relative flex flex-col">
         <div
+          ref={scrollRef}
           className={`flex-1 overflow-auto bg-gray-50 custom-scrollbar transition-all duration-300 ease-in-out ${
             drawerOpen ? 'mr-[420px]' : 'mr-0'
           }`}
