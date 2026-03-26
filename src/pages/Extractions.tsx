@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { TypeTabs } from '@/components/layout/TypeTabs'
 import { DocumentFilters } from '@/components/filters/DocumentFilters'
 import { ExtractionsTable } from '@/components/extractions/ExtractionsTable'
 import { ExtractionDrawer } from '@/components/extractions/ExtractionDrawer'
+import { Pagination } from '@/components/common/Pagination'
 import { useUIStore } from '@/stores/uiStore'
 import { useFilterStore } from '@/stores/filterStore'
 import { documentsService } from '@/services/documents'
@@ -16,14 +17,39 @@ type ViewMode = 'documents' | 'lines'
 
 export function Extractions() {
   const { drawerOpen, selectedId } = useUIStore()
-  const { activeType, selectedFournisseur, searchTerm, filters } = useFilterStore()
+  const {
+    activeType, selectedFournisseur, searchTerm, filters,
+    page, perPage, sortBy, sortOrder,
+    setPage, setPerPage,
+  } = useFilterStore()
   const [viewMode, setViewMode] = useState<ViewMode>('documents')
   const { exportToXLSX, exportToCSV } = useExport()
+  const scrollRef = useRef<HTMLDivElement>(null)
 
-  // Fetch documents from API
-  const { data: documentsData, isLoading: loadingDocs } = useQuery({
-    queryKey: ['documents', { limit: 500, search: searchTerm }],
-    queryFn: () => documentsService.getAll({ limit: 500, search: searchTerm || undefined }),
+  // Scroll to top when page changes
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 })
+  }, [page])
+
+  // Build query params from store state
+  const queryParams = {
+    offset: (page - 1) * perPage,
+    limit: perPage,
+    categorie_fournisseur: activeType,
+    fournisseur: selectedFournisseur || undefined,
+    status: filters.status?.[0] || undefined,
+    search: searchTerm || undefined,
+    sort_by: sortBy,
+    sort_order: sortOrder,
+    date_from: filters.dateRange?.from ? filters.dateRange.from.toISOString().split('T')[0] : undefined,
+    date_to: filters.dateRange?.to ? filters.dateRange.to.toISOString().split('T')[0] : undefined,
+  }
+
+  // Fetch documents from API (server-side pagination)
+  const { data: serverResponse, isLoading: loadingDocs } = useQuery({
+    queryKey: ['documents', queryParams],
+    queryFn: () => documentsService.getAll(queryParams),
+    placeholderData: (prev) => prev,
   })
 
   // Fetch extractions for lines view
@@ -33,88 +59,64 @@ export function Extractions() {
     enabled: viewMode === 'lines',
   })
 
-  const allDocuments = documentsData?.items || []
+  const documents = serverResponse?.documents || []
+  const totalCount = serverResponse?.total_count || 0
+  const aggregations = serverResponse?.aggregations
+  const fournisseurs = serverResponse?.fournisseurs || []
   const allExtractions = extractionsData?.items || []
 
-  // Filter documents
-  const filteredDocuments = useMemo(() => {
-    return allDocuments.filter((doc) => {
-      // Filter by type
-      if (doc.categorie_fournisseur !== activeType) return false
+  // Tab counts from server aggregations
+  const counts = {
+    GROSSISTE: aggregations?.by_categorie?.GROSSISTE ?? 0,
+    LABO: aggregations?.by_categorie?.LABO ?? 0,
+  }
 
-      // Filter by fournisseur
-      if (selectedFournisseur && doc.fournisseur !== selectedFournisseur) return false
-
-      // Filter by search (already done at API level, but double-check)
-      if (searchTerm) {
-        const term = searchTerm.toLowerCase()
-        if (
-          !doc.numero_facture?.toLowerCase().includes(term) &&
-          !doc.fournisseur?.toLowerCase().includes(term) &&
-          !doc.nom_fichier?.toLowerCase().includes(term)
-        ) {
-          return false
-        }
-      }
-
-      // Filter by status
-      if (filters.status?.length && !filters.status.includes(doc.status)) {
-        return false
-      }
-
-      return true
-    })
-  }, [allDocuments, activeType, selectedFournisseur, searchTerm, filters])
-
-  // Counts for tabs
-  const counts = useMemo(
-    () => ({
-      LABO: allDocuments.filter((d) => d.categorie_fournisseur === 'LABO').length,
-      GROSSISTE: allDocuments.filter((d) => d.categorie_fournisseur === 'GROSSISTE').length,
-    }),
-    [allDocuments]
-  )
-
-  // Totals
-  const totals = useMemo(() => {
-    const ht = filteredDocuments.reduce((acc, doc) => acc + (doc.base_ht_tva_20 || 0), 0)
-    const ttc = filteredDocuments.reduce((acc, doc) => acc + (doc.net_a_payer || 0), 0)
-    return { count: filteredDocuments.length, ht, ttc }
-  }, [filteredDocuments])
+  // Totals from server aggregations
+  const totals = {
+    count: totalCount,
+    ht: aggregations?.totals?.total_ht ?? 0,
+    ttc: aggregations?.totals?.total_ttc ?? 0,
+  }
 
   // Selected document
-  const selectedDocument = useMemo(
-    () => allDocuments.find((d) => d.id === selectedId) || null,
-    [allDocuments, selectedId]
-  )
+  const selectedDocument = documents.find((d) => d.id === selectedId) || null
 
-  // Unique fournisseurs for filter
-  const uniqueFournisseurs = useMemo(() => {
-    const set = new Set(
-      allDocuments
-        .filter((d) => d.categorie_fournisseur === activeType)
-        .map((d) => d.fournisseur)
-        .filter(Boolean)
-    )
-    return Array.from(set).sort()
-  }, [allDocuments, activeType])
-
-  // Export handlers
-  const handleExportCSV = () => {
+  // Export handlers (use dedicated export endpoint)
+  const handleExportCSV = useCallback(async () => {
     if (viewMode === 'documents') {
-      exportToCSV(filteredDocuments as unknown as Record<string, unknown>[], 'documents_export')
+      const exportData = await documentsService.exportAll({
+        categorie_fournisseur: activeType,
+        fournisseur: selectedFournisseur || undefined,
+        status: filters.status?.[0] || undefined,
+        search: searchTerm || undefined,
+        sort_by: sortBy,
+        sort_order: sortOrder,
+        date_from: filters.dateRange?.from ? filters.dateRange.from.toISOString().split('T')[0] : undefined,
+        date_to: filters.dateRange?.to ? filters.dateRange.to.toISOString().split('T')[0] : undefined,
+      })
+      exportToCSV(exportData.documents as unknown as Record<string, unknown>[], 'documents_export')
     } else {
       exportToCSV(allExtractions as unknown as Record<string, unknown>[], 'extractions_export')
     }
-  }
+  }, [viewMode, activeType, selectedFournisseur, filters, searchTerm, sortBy, sortOrder, allExtractions, exportToCSV])
 
-  const handleExportXLSX = () => {
+  const handleExportXLSX = useCallback(async () => {
     if (viewMode === 'documents') {
-      exportToXLSX(filteredDocuments as unknown as Record<string, unknown>[], 'documents_export')
+      const exportData = await documentsService.exportAll({
+        categorie_fournisseur: activeType,
+        fournisseur: selectedFournisseur || undefined,
+        status: filters.status?.[0] || undefined,
+        search: searchTerm || undefined,
+        sort_by: sortBy,
+        sort_order: sortOrder,
+        date_from: filters.dateRange?.from ? filters.dateRange.from.toISOString().split('T')[0] : undefined,
+        date_to: filters.dateRange?.to ? filters.dateRange.to.toISOString().split('T')[0] : undefined,
+      })
+      exportToXLSX(exportData.documents as unknown as Record<string, unknown>[], 'documents_export')
     } else {
       exportToXLSX(allExtractions as unknown as Record<string, unknown>[], 'extractions_export')
     }
-  }
+  }, [viewMode, activeType, selectedFournisseur, filters, searchTerm, sortBy, sortOrder, allExtractions, exportToXLSX])
 
   const isLoading = loadingDocs || (viewMode === 'lines' && loadingExtractions)
 
@@ -159,7 +161,7 @@ export function Extractions() {
             {viewMode === 'documents' ? 'Documents' : 'Lignes extraites'}
           </span>
           <span className="text-lg font-bold text-gray-800">
-            {isLoading ? '...' : viewMode === 'documents' ? totals.count : allExtractions.length}
+            {isLoading ? '...' : viewMode === 'documents' ? totals.count.toLocaleString('fr-FR') : allExtractions.length}
           </span>
         </div>
         <div className="w-px h-8 bg-gray-100" />
@@ -198,11 +200,12 @@ export function Extractions() {
       </div>
 
       {/* Filters */}
-      <DocumentFilters fournisseurs={uniqueFournisseurs} />
+      <DocumentFilters fournisseurs={fournisseurs} />
 
       {/* Split View: Table + Drawer */}
-      <div className="flex-1 overflow-hidden relative flex flex-row">
+      <div className="flex-1 overflow-hidden relative flex flex-col">
         <div
+          ref={scrollRef}
           className={`flex-1 overflow-auto bg-gray-50 custom-scrollbar transition-all duration-300 ease-in-out ${
             drawerOpen ? 'mr-[420px]' : 'mr-0'
           }`}
@@ -214,12 +217,23 @@ export function Extractions() {
                 <span className="ml-3 text-gray-500">Chargement...</span>
               </div>
             ) : viewMode === 'documents' ? (
-              <ExtractionsTable data={filteredDocuments} />
+              <ExtractionsTable data={documents} />
             ) : (
-              <ExtractionsTable data={filteredDocuments} extractions={allExtractions} viewMode="lines" />
+              <ExtractionsTable data={documents} extractions={allExtractions} viewMode="lines" />
             )}
           </div>
         </div>
+
+        {/* Pagination (documents view only) */}
+        {viewMode === 'documents' && !isLoading && totalCount > 0 && (
+          <Pagination
+            page={page}
+            perPage={perPage}
+            totalCount={totalCount}
+            onPageChange={setPage}
+            onPerPageChange={setPerPage}
+          />
+        )}
 
         {/* Drawer */}
         <ExtractionDrawer document={selectedDocument} isOpen={drawerOpen} />

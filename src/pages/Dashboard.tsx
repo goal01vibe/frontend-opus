@@ -27,7 +27,7 @@ export function Dashboard() {
   })
 
   const isLoading = statsLoading || docsLoading
-  const documents = docsData?.items || []
+  const documents = docsData?.documents || []
   const dbStats = stats?.database_stats
 
   // Build all computed data with useMemo (MUST be before any conditional return)
