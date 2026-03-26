@@ -82,6 +82,17 @@ export function Extractions() {
   const allExtractions = extractionsData?.extractions || []
   const extractionsTotalCount = extractionsData?.total_count || 0
 
+  // Fetch selected document independently (needed when lines view search doesn't match documents)
+  const { data: fetchedDocument } = useQuery({
+    queryKey: ['document-detail', selectedId],
+    queryFn: async () => {
+      if (!selectedId) return null
+      const response = await documentsService.getAll({ search: String(selectedId), limit: 10 })
+      return response.documents?.find(d => d.id === selectedId) || null
+    },
+    enabled: !!selectedId && !documents.find(d => d.id === selectedId),
+  })
+
   // Tab counts from server aggregations
   const counts = {
     GROSSISTE: aggregations?.by_categorie?.GROSSISTE ?? 0,
@@ -96,7 +107,7 @@ export function Extractions() {
   }
 
   // Selected document
-  const selectedDocument = documents.find((d) => d.id === selectedId) || null
+  const selectedDocument = documents.find((d) => d.id === selectedId) || fetchedDocument || null
 
   // Export handlers (use dedicated export endpoint)
   const handleExportCSV = useCallback(async () => {
