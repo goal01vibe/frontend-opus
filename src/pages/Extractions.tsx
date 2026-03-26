@@ -41,6 +41,8 @@ export function Extractions() {
     search: searchTerm || undefined,
     sort_by: sortBy,
     sort_order: sortOrder,
+    date_from: filters.dateRange?.from ? filters.dateRange.from.toISOString().split('T')[0] : undefined,
+    date_to: filters.dateRange?.to ? filters.dateRange.to.toISOString().split('T')[0] : undefined,
   }
 
   // Fetch documents from API (server-side pagination)
@@ -89,6 +91,8 @@ export function Extractions() {
         search: searchTerm || undefined,
         sort_by: sortBy,
         sort_order: sortOrder,
+        date_from: filters.dateRange?.from ? filters.dateRange.from.toISOString().split('T')[0] : undefined,
+        date_to: filters.dateRange?.to ? filters.dateRange.to.toISOString().split('T')[0] : undefined,
       })
       exportToCSV(exportData.documents as unknown as Record<string, unknown>[], 'documents_export')
     } else {
@@ -105,6 +109,8 @@ export function Extractions() {
         search: searchTerm || undefined,
         sort_by: sortBy,
         sort_order: sortOrder,
+        date_from: filters.dateRange?.from ? filters.dateRange.from.toISOString().split('T')[0] : undefined,
+        date_to: filters.dateRange?.to ? filters.dateRange.to.toISOString().split('T')[0] : undefined,
       })
       exportToXLSX(exportData.documents as unknown as Record<string, unknown>[], 'documents_export')
     } else {

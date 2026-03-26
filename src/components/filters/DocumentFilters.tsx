@@ -40,7 +40,7 @@ export function DocumentFilters({ fournisseurs = [] }: DocumentFiltersProps) {
 
   const availableFournisseurs = activeType === 'GROSSISTE' ? GROSSISTES : fournisseurs
 
-  const hasActiveFilters = searchTerm || selectedFournisseur || filters.status?.length
+  const hasActiveFilters = searchTerm || selectedFournisseur || filters.status?.length || filters.dateRange
 
   return (
     <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
@@ -88,11 +88,39 @@ export function DocumentFilters({ fournisseurs = [] }: DocumentFiltersProps) {
             <option value="AUTO_PROCESSED">Auto</option>
           </select>
 
-          {/* Date Button */}
-          <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-blue-300 hover:text-blue-600 transition shadow-sm">
-            <Calendar className="w-4 h-4" />
-            Date
-          </button>
+          {/* Date Range Filter */}
+          <div className="flex items-center gap-1">
+            <Calendar className="w-4 h-4 text-gray-400" />
+            <input
+              type="date"
+              value={filters.dateRange?.from ? filters.dateRange.from.toISOString().split('T')[0] : ''}
+              onChange={(e) => {
+                const from = e.target.value ? new Date(e.target.value) : undefined
+                setFilters({
+                  dateRange: from || filters.dateRange?.to
+                    ? { from: from || filters.dateRange?.from, to: filters.dateRange?.to } as any
+                    : undefined
+                })
+              }}
+              className="px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition shadow-sm"
+              title="Date début"
+            />
+            <span className="text-gray-400 text-xs">→</span>
+            <input
+              type="date"
+              value={filters.dateRange?.to ? filters.dateRange.to.toISOString().split('T')[0] : ''}
+              onChange={(e) => {
+                const to = e.target.value ? new Date(e.target.value) : undefined
+                setFilters({
+                  dateRange: to || filters.dateRange?.from
+                    ? { from: filters.dateRange?.from, to: to || filters.dateRange?.to } as any
+                    : undefined
+                })
+              }}
+              className="px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition shadow-sm"
+              title="Date fin"
+            />
+          </div>
 
           {/* Reset */}
           {hasActiveFilters && (
@@ -137,6 +165,14 @@ export function DocumentFilters({ fournisseurs = [] }: DocumentFiltersProps) {
               </button>
             </span>
           ))}
+          {filters.dateRange && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">
+              {filters.dateRange.from ? filters.dateRange.from.toISOString().split('T')[0] : '...'} → {filters.dateRange.to ? filters.dateRange.to.toISOString().split('T')[0] : '...'}
+              <button onClick={() => setFilters({ dateRange: undefined })}>
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
         </div>
       )}
     </div>

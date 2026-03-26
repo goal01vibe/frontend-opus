@@ -11,6 +11,8 @@ interface DocumentsParams {
   template?: string
   sort_by?: string
   sort_order?: string
+  date_from?: string
+  date_to?: string
 }
 
 export const documentsService = {
