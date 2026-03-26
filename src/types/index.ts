@@ -218,6 +218,38 @@ export interface PaginatedResponse<T> {
   pages: number
 }
 
+// Server Pagination Response (from GET /documents)
+export interface DocumentAggregations {
+  by_categorie: {
+    GROSSISTE: number
+    LABO: number
+  }
+  by_status: {
+    VALIDATED: number
+    NEEDS_REVIEW: number
+    AUTO_PROCESSED: number
+    FAILED: number
+  }
+  totals: {
+    total_ht: number
+    total_ttc: number
+  }
+}
+
+export interface ServerDocumentsResponse {
+  total_count: number
+  offset: number
+  limit: number
+  fournisseurs: string[]
+  documents: Document[]
+  aggregations: DocumentAggregations
+}
+
+export interface ServerExportResponse {
+  count: number
+  documents: Document[]
+}
+
 // Extract Response
 export interface ExtractResponse {
   success: boolean

@@ -1,56 +1,32 @@
 import api from './api'
-import type { Document, PaginatedResponse, FilterState, FournisseurType } from '@/types'
+import type { Document, ServerDocumentsResponse, ServerExportResponse } from '@/types'
 
 interface DocumentsParams {
-  limit?: number
   offset?: number
+  limit?: number
+  categorie_fournisseur?: string
   fournisseur?: string
   status?: string
-  categorie_fournisseur?: string
   search?: string
   template?: string
-}
-
-interface DocumentsApiResponse {
-  count: number
-  documents: Document[]
-}
-
-// Liste des grossistes (évolutive)
-const GROSSISTES = ['OCP', 'STRAIGHT', 'ACTIVE-REPARTITION', 'D2P', 'AREDIS']
-
-/**
- * Dérive la catégorie fournisseur à partir du nom du fournisseur
- */
-function deriveCategorieFromFournisseur(fournisseur: string): FournisseurType {
-  if (!fournisseur) return 'LABO'
-  const normalized = fournisseur.toUpperCase().trim()
-  return GROSSISTES.some(g => normalized.includes(g) || g.includes(normalized))
-    ? 'GROSSISTE'
-    : 'LABO'
+  sort_by?: string
+  sort_order?: string
 }
 
 export const documentsService = {
-  getAll: async (params: DocumentsParams = {}): Promise<PaginatedResponse<Document>> => {
-    const { data } = await api.get<DocumentsApiResponse>('/documents', { params })
-    // Transform API response to our format + derive categorie_fournisseur
-    const items = (data.documents || []).map(doc => ({
-      ...doc,
-      categorie_fournisseur: doc.categorie_fournisseur || deriveCategorieFromFournisseur(doc.fournisseur)
-    }))
-    return {
-      items,
-      total: data.count || 0,
-      page: 1,
-      limit: params.limit || 50,
-      pages: Math.ceil((data.count || 0) / (params.limit || 50))
-    }
+  getAll: async (params: DocumentsParams = {}): Promise<ServerDocumentsResponse> => {
+    const { data } = await api.get<ServerDocumentsResponse>('/documents', { params })
+    return data
+  },
+
+  exportAll: async (params: Omit<DocumentsParams, 'offset' | 'limit'>): Promise<ServerExportResponse> => {
+    const { data } = await api.get<ServerExportResponse>('/documents/export', { params })
+    return data
   },
 
   getById: async (id: number): Promise<Document> => {
-    // Get document from list (API doesn't have single document endpoint)
-    const { data } = await api.get<DocumentsApiResponse>('/documents', {
-      params: { limit: 1000 }
+    const { data } = await api.get<ServerDocumentsResponse>('/documents', {
+      params: { search: String(id), limit: 10 }
     })
     const doc = data.documents?.find(d => d.id === id)
     if (!doc) throw new Error('Document not found')
@@ -58,8 +34,7 @@ export const documentsService = {
   },
 
   getPdfUrl: (id: number): string => {
-    // Return direct URL for PDF viewing with cache-buster to prevent browser caching wrong PDF
-    return `${api.defaults.baseURL}/documents/${id}/pdf?_t=${Date.now()}`
+    return `${api.defaults.baseURL}/documents/${id}/pdf?doc=${id}`
   },
 
   getPdf: async (id: number): Promise<Blob> => {
@@ -87,34 +62,9 @@ export const documentsService = {
   },
 
   search: async (query: string): Promise<Document[]> => {
-    const { data } = await api.get<DocumentsApiResponse>('/documents', {
+    const { data } = await api.get<ServerDocumentsResponse>('/documents', {
       params: { search: query, limit: 50 }
     })
     return data.documents || []
   },
-}
-
-export const buildDocumentsQueryParams = (filters: FilterState) => {
-  const params: Record<string, string | number> = {}
-
-  if (filters.fournisseur?.length) {
-    params.fournisseur = filters.fournisseur.join(',')
-  }
-  if (filters.status?.length) {
-    params.status = filters.status.join(',')
-  }
-  if (filters.dateRange?.from) {
-    params.date_from = filters.dateRange.from.toISOString().split('T')[0]
-  }
-  if (filters.dateRange?.to) {
-    params.date_to = filters.dateRange.to.toISOString().split('T')[0]
-  }
-  if (filters.confidence?.min !== undefined) {
-    params.confidence_min = filters.confidence.min
-  }
-  if (filters.confidence?.max !== undefined) {
-    params.confidence_max = filters.confidence.max
-  }
-
-  return params
 }
