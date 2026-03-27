@@ -175,7 +175,7 @@ export function Extractions() {
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       {/* KPI Bar */}
-      <div className="bg-white px-6 py-3 border-b border-gray-200 flex gap-6 items-center overflow-x-auto shrink-0 shadow-sm z-10">
+      <div className="bg-white px-4 py-3 border-b border-gray-200 flex gap-3 items-center shrink-0 shadow-sm z-10 overflow-x-auto">
         <TypeTabs counts={counts} />
 
         <div className="w-px h-8 bg-gray-200" />
@@ -212,24 +212,23 @@ export function Extractions() {
           <span className="text-xs text-gray-400 uppercase font-semibold">
             {viewMode === 'documents' ? 'Documents' : 'Lignes extraites'}
           </span>
-          <span className="text-lg font-bold text-gray-800">
+          <span className="text-base font-bold text-gray-800">
             {isLoading ? '...' : viewMode === 'documents' ? totals.count.toLocaleString('fr-FR') : extractionsTotalCount.toLocaleString('fr-FR')}
           </span>
         </div>
         <div className="w-px h-8 bg-gray-100" />
         <div className="flex flex-col">
-          <span className="text-xs text-gray-400 uppercase font-semibold">Total HT (filtré)</span>
-          <span className="text-lg font-bold text-gray-800">{formatCurrency(totals.ht)}</span>
+          <span className="text-xs text-gray-400 uppercase font-semibold">HT</span>
+          <span className="text-base font-bold text-gray-800">{formatCurrency(totals.ht)}</span>
         </div>
-        <div className="w-px h-8 bg-gray-100" />
         <div className="flex flex-col">
-          <span className="text-xs text-gray-400 uppercase font-semibold">Total TTC (filtré)</span>
-          <span className="text-lg font-bold text-blue-600">{formatCurrency(totals.ttc)}</span>
+          <span className="text-xs text-gray-400 uppercase font-semibold">TTC</span>
+          <span className="text-base font-bold text-blue-600">{formatCurrency(totals.ttc)}</span>
         </div>
 
         <div className="flex-grow" />
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 shrink-0">
           <button
             onClick={handleExportCSV}
             className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded text-sm font-medium text-gray-600 hover:bg-gray-50 transition shadow-sm whitespace-nowrap"
