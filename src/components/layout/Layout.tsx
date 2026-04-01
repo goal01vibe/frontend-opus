@@ -1,11 +1,13 @@
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
+import { BdpmAlert } from './BdpmAlert'
 import { ExtractionModal } from '@/components/extraction/ExtractionModal'
 
 export function Layout() {
   return (
     <div className="flex flex-col h-screen relative bg-gray-50 overflow-hidden">
+      <BdpmAlert />
       <Header />
       <div className="flex flex-1 overflow-hidden relative">
         <Sidebar />

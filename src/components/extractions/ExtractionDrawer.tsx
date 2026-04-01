@@ -24,7 +24,7 @@ import { cn, formatFullCurrency, formatDate } from '@/lib/utils'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { ConfidenceBadge } from '@/components/common/ConfidenceBadge'
 import { TVARecapTable } from '@/components/common/TVARecapTable'
-import { BDPMSummary } from '@/components/common/BDPMBadges'
+import { ProductSummary } from '@/components/common/ProductBadges'
 import { useUIStore } from '@/stores/uiStore'
 import { documentsService } from '@/services/documents'
 import { extractionsService } from '@/services/extractions'
@@ -45,7 +45,7 @@ export function ExtractionDrawer({ document, isOpen }: ExtractionDrawerProps) {
   const { closeDrawer } = useUIStore()
   const [numPages, setNumPages] = useState<number>(0)
   const [pageNumber, setPageNumber] = useState<number>(1)
-  const [scale, setScale] = useState<number>(0.6)
+  const [scale, setScale] = useState<number>(0.8)
   const [pdfError, setPdfError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'info' | 'pdf'>('info')
   const [splitView, setSplitView] = useState<boolean>(false)
@@ -54,7 +54,7 @@ export function ExtractionDrawer({ document, isOpen }: ExtractionDrawerProps) {
   // Reset state when document changes
   useEffect(() => {
     setPageNumber(1)
-    setScale(0.6)
+    setScale(0.8)
     setPdfError(null)
     setExtractions([])
   }, [document?.id])
@@ -258,7 +258,7 @@ export function ExtractionDrawer({ document, isOpen }: ExtractionDrawerProps) {
                 </button>
               </div>
               {/* PDF Viewer */}
-              <div className="flex-1 overflow-auto bg-gray-200 flex items-start justify-center p-2">
+              <div className="flex-1 overflow-auto bg-gray-200 p-2">
                 {pdfError ? (
                   <div className="text-center text-gray-500 py-10">
                     <FileText className="w-10 h-10 mx-auto mb-2 text-gray-400" />
@@ -343,7 +343,7 @@ export function ExtractionDrawer({ document, isOpen }: ExtractionDrawerProps) {
 
                 {/* BDPM Summary */}
                 {extractions.length > 0 && (
-                  <BDPMSummary extractions={extractions} />
+                  <ProductSummary extractions={extractions} />
                 )}
 
                 {/* Technical Info - Compact */}
@@ -425,7 +425,7 @@ export function ExtractionDrawer({ document, isOpen }: ExtractionDrawerProps) {
 
                 {/* BDPM Summary */}
                 {extractions.length > 0 && (
-                  <BDPMSummary extractions={extractions} />
+                  <ProductSummary extractions={extractions} />
                 )}
 
                 {/* Technical Info */}
@@ -505,7 +505,7 @@ export function ExtractionDrawer({ document, isOpen }: ExtractionDrawerProps) {
                 </div>
 
                 {/* PDF Viewer */}
-                <div className="flex-1 overflow-auto bg-gray-200 flex items-start justify-center p-4">
+                <div className="flex-1 overflow-auto bg-gray-200 p-4">
                   {pdfError ? (
                     <div className="text-center text-gray-500 py-10">
                       <FileText className="w-12 h-12 mx-auto mb-3 text-gray-400" />

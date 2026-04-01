@@ -49,18 +49,21 @@ export interface Document {
   alerts?: Alert[]
 }
 
-// Type produit BDPM
+// Type produit BDPM (legacy)
 export type TypeProduit = 'MEDICAMENT' | 'AUTRE' | null
 
-// Taux de remboursement BDPM
-export type TauxRemboursement = '100%' | '65%' | '30%' | '15%' | 'NR' | null
+// Catégorie produit BCB/VIDAL (nouveau système 3 catégories)
+export type Categorie = 'MEDICAMENT' | 'LPP' | 'AUTRES' | null
+
+// Taux de remboursement BCB/VIDAL
+export type TauxRemboursement = '100%' | '90%' | '70%' | '65%' | '60%' | '30%' | '15%' | 'NR' | null
 
 // Extraction (ligne de facture)
 export interface Extraction {
   id: number
   document_id: number
   cat?: string
-  categorie?: string
+  categorie?: Categorie
   code_article: string
   designation_article: string
   numero_lot?: string
@@ -75,9 +78,15 @@ export interface Extraction {
   montant_ligne_ht: number
   confidence_score: number
   error_details?: string
-  // BDPM enrichment
+  // BDPM enrichment (legacy)
   type_produit?: TypeProduit
   taux_remboursement?: TauxRemboursement
+  // Enrichissement BCB/VIDAL
+  is_medicament?: boolean
+  is_stupefiant?: boolean
+  is_lpp?: boolean
+  is_non_rembourse?: boolean
+  labo?: string
   bounding_box?: {
     page: number
     x1: number

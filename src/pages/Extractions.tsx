@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { TypeTabs } from '@/components/layout/TypeTabs'
 import { DocumentFilters } from '@/components/filters/DocumentFilters'
 import { ExtractionsTable } from '@/components/extractions/ExtractionsTable'
@@ -59,6 +59,7 @@ export function Extractions() {
   const [linesPage, setLinesPage] = useState(1)
   const [linesPerPage, setLinesPerPage] = useState(50)
   const { exportToXLSX, exportToCSV } = useExport()
+  const queryClient = useQueryClient()
   const scrollRef = useRef<HTMLDivElement>(null)
 
   // Scroll to top when page changes
@@ -114,6 +115,47 @@ export function Extractions() {
   const fournisseurs = serverResponse?.fournisseurs || []
   const allExtractions = extractionsData?.extractions || []
   const extractionsTotalCount = extractionsData?.total_count || 0
+
+  // Prefetch next page of documents
+  useEffect(() => {
+    const totalPages = Math.ceil(totalCount / perPage)
+    if (page < totalPages) {
+      const nextParams = {
+        offset: page * perPage,
+        limit: perPage,
+        categorie_fournisseur: activeType,
+        fournisseur: selectedFournisseur || undefined,
+        status: filters.status?.[0] || undefined,
+        search: searchTerm || undefined,
+        sort_by: sortBy,
+        sort_order: sortOrder,
+        date_from: filters.dateRange?.from ? filters.dateRange.from.toISOString().split('T')[0] : undefined,
+        date_to: filters.dateRange?.to ? filters.dateRange.to.toISOString().split('T')[0] : undefined,
+      }
+      queryClient.prefetchQuery({
+        queryKey: ['documents', nextParams],
+        queryFn: () => documentsService.getAll(nextParams),
+      })
+    }
+  }, [page, perPage, totalCount, activeType, selectedFournisseur, searchTerm, sortBy, sortOrder, filters, queryClient])
+
+  // Prefetch next page of extractions (lines view)
+  useEffect(() => {
+    if (viewMode !== 'lines') return
+    const totalPages = Math.ceil(extractionsTotalCount / linesPerPage)
+    if (linesPage < totalPages) {
+      const nextParams = {
+        offset: linesPage * linesPerPage,
+        limit: linesPerPage,
+        categorie_fournisseur: activeType,
+        search: searchTerm || undefined,
+      }
+      queryClient.prefetchQuery({
+        queryKey: ['extractions', nextParams],
+        queryFn: () => extractionsService.getAll(nextParams),
+      })
+    }
+  }, [linesPage, linesPerPage, extractionsTotalCount, viewMode, activeType, searchTerm, queryClient])
 
   // Tab counts from server aggregations
   const counts = {

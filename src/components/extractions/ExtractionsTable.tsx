@@ -16,7 +16,7 @@ import { useUIStore } from '@/stores/uiStore'
 import { useFilterStore } from '@/stores/filterStore'
 import type { Document, Extraction } from '@/types'
 import { ArrowUpDown, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
-import { RemboursementBadge } from '@/components/common/BDPMBadges'
+import { ProductBadges } from '@/components/common/ProductBadges'
 
 interface ExtractionsTableProps {
   data: Document[]
@@ -273,15 +273,11 @@ export function ExtractionsTable({ data, extractions = [], viewMode = 'documents
       },
       {
         accessorKey: 'taux_remboursement',
-        header: 'Remb.',
-        size: 55,
+        header: 'Type',
+        size: 75,
         cell: ({ row }) => (
           <div className="flex justify-center">
-            <RemboursementBadge
-              taux={row.original.taux_remboursement}
-              typeProduit={row.original.type_produit}
-              size="sm"
-            />
+            <ProductBadges extraction={row.original} size="sm" />
           </div>
         ),
       },

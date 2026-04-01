@@ -27,12 +27,8 @@ export const documentsService = {
   },
 
   getById: async (id: number): Promise<Document> => {
-    const { data } = await api.get<ServerDocumentsResponse>('/documents', {
-      params: { search: String(id), limit: 10 }
-    })
-    const doc = data.documents?.find(d => d.id === id)
-    if (!doc) throw new Error('Document not found')
-    return doc
+    const { data } = await api.get<Document>(`/documents/${id}`)
+    return data
   },
 
   getPdfUrl: (id: number): string => {
