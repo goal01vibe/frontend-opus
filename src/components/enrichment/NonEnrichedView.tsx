@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { enrichmentService, type NonEnrichedCode } from '@/services/enrichment'
 import { CategorizeModal } from './CategorizeModal'
-import { ArrowLeft, Loader2, Tag, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Loader2, Tag, AlertCircle, Search } from 'lucide-react'
 
 interface NonEnrichedViewProps {
   onClose: () => void
+  onGoToSearch: (code: string) => void
 }
 
-export function NonEnrichedView({ onClose }: NonEnrichedViewProps) {
+export function NonEnrichedView({ onClose, onGoToSearch }: NonEnrichedViewProps) {
   const queryClient = useQueryClient()
   const [selectedCode, setSelectedCode] = useState<NonEnrichedCode | null>(null)
 
@@ -124,7 +125,13 @@ export function NonEnrichedView({ onClose }: NonEnrichedViewProps) {
                       className={`${idx % 2 === 0 ? 'bg-slate-50' : 'bg-slate-100'} hover:bg-blue-50 transition-colors duration-150`}
                     >
                       <td className="py-3 px-4 text-sm">
-                        <span className="font-mono text-sm text-gray-800">{code.code_article}</span>
+                        <button
+                          onClick={() => onGoToSearch(code.code_article)}
+                          className="font-mono text-sm text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                          title="Voir les factures contenant ce code"
+                        >
+                          {code.code_article}
+                        </button>
                       </td>
                       <td className="py-3 px-4 text-sm text-gray-600">
                         <span className="truncate block max-w-[250px]" title={code.denomination_sample}>
@@ -143,13 +150,22 @@ export function NonEnrichedView({ onClose }: NonEnrichedViewProps) {
                         )}
                       </td>
                       <td className="py-3 px-4 text-sm text-center">
-                        <button
-                          onClick={() => setSelectedCode(code)}
-                          className="inline-flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition"
-                        >
-                          <Tag className="w-3 h-3" />
-                          Categoriser
-                        </button>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => onGoToSearch(code.code_article)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-gray-500 hover:bg-gray-100 transition"
+                            title="Voir les factures"
+                          >
+                            <Search className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => setSelectedCode(code)}
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition"
+                          >
+                            <Tag className="w-3 h-3" />
+                            Categoriser
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

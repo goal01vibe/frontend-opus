@@ -55,7 +55,7 @@ export function Extractions() {
   const {
     activeType, selectedFournisseur, searchTerm, filters,
     page, perPage, sortBy, sortOrder,
-    setPage, setPerPage,
+    setPage, setPerPage, setSearchTerm,
   } = useFilterStore()
   const [viewMode, setViewMode] = useState<ViewMode>('documents')
   const [showNonEnriched, setShowNonEnriched] = useState(false)
@@ -316,7 +316,13 @@ export function Extractions() {
       </div>
 
       {showNonEnriched ? (
-        <NonEnrichedView onClose={() => setShowNonEnriched(false)} />
+        <NonEnrichedView
+          onClose={() => setShowNonEnriched(false)}
+          onGoToSearch={(code) => {
+            setSearchTerm(code)
+            setShowNonEnriched(false)
+          }}
+        />
       ) : (
         <>
           {/* Filters */}
