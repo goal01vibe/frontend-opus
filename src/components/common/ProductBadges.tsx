@@ -15,6 +15,9 @@ const categorieConfig: Record<string, { bg: string; text: string; label: string 
   MEDICAMENT: { bg: 'bg-blue-500', text: 'text-white', label: 'MED' },
   LPP: { bg: 'bg-green-500', text: 'text-white', label: 'LPP' },
   AUTRES: { bg: 'bg-gray-400', text: 'text-white', label: 'PARA' },
+  CONSOMMABLE: { bg: 'bg-orange-500', text: 'text-white', label: 'CONSO' },
+  SERVICE: { bg: 'bg-purple-500', text: 'text-white', label: 'SERV' },
+  MEDICAMENT_IMPORT: { bg: 'bg-indigo-600', text: 'text-white', label: 'MED IMP' },
 }
 
 export function CategorieBadge({ categorie, isStupefiant = false, size = 'sm' }: CategorieBadgeProps) {
@@ -194,6 +197,12 @@ export function ProductSummary({ extractions }: ProductSummaryProps) {
         acc.lpp++
       } else if (cat === 'AUTRES') {
         acc.autres++
+      } else if (cat === 'CONSOMMABLE') {
+        acc.consommable++
+      } else if (cat === 'SERVICE') {
+        acc.service++
+      } else if (cat === 'MEDICAMENT_IMPORT') {
+        acc.medicament_import++
       }
       return acc
     },
@@ -201,6 +210,9 @@ export function ProductSummary({ extractions }: ProductSummaryProps) {
       medicaments: 0,
       lpp: 0,
       autres: 0,
+      consommable: 0,
+      service: 0,
+      medicament_import: 0,
       taux100: 0,
       taux90: 0,
       taux70: 0,
@@ -213,7 +225,7 @@ export function ProductSummary({ extractions }: ProductSummaryProps) {
     }
   )
 
-  if (stats.medicaments === 0 && stats.lpp === 0 && stats.autres === 0) return null
+  if (stats.medicaments === 0 && stats.lpp === 0 && stats.autres === 0 && stats.consommable === 0 && stats.service === 0 && stats.medicament_import === 0) return null
 
   // Badges de taux pour le resume
   const tauxBadges: Array<{ count: number; bg: string; text: string; border?: string; label: string }> = [
@@ -303,6 +315,54 @@ export function ProductSummary({ extractions }: ProductSummaryProps) {
               Parapharmacie
             </span>
             <span className="text-sm font-semibold text-gray-800">{stats.autres}</span>
+          </div>
+        )}
+
+        {/* Consommables */}
+        {stats.consommable > 0 && (
+          <div className={cn(
+            'flex items-center justify-between',
+            (stats.medicaments > 0 || stats.lpp > 0 || stats.autres > 0) && 'pt-1 border-t border-gray-200'
+          )}>
+            <span className="text-sm text-gray-600 flex items-center gap-1.5">
+              <span className="inline-flex items-center justify-center min-w-[24px] h-5 text-[10px] font-bold rounded bg-orange-500 text-white px-1.5 shadow-sm">
+                CONSO
+              </span>
+              Consommables
+            </span>
+            <span className="text-sm font-semibold text-gray-800">{stats.consommable}</span>
+          </div>
+        )}
+
+        {/* Services */}
+        {stats.service > 0 && (
+          <div className={cn(
+            'flex items-center justify-between',
+            (stats.medicaments > 0 || stats.lpp > 0 || stats.autres > 0 || stats.consommable > 0) && 'pt-1 border-t border-gray-200'
+          )}>
+            <span className="text-sm text-gray-600 flex items-center gap-1.5">
+              <span className="inline-flex items-center justify-center min-w-[24px] h-5 text-[10px] font-bold rounded bg-purple-500 text-white px-1.5 shadow-sm">
+                SERV
+              </span>
+              Services
+            </span>
+            <span className="text-sm font-semibold text-gray-800">{stats.service}</span>
+          </div>
+        )}
+
+        {/* Medicaments Import */}
+        {stats.medicament_import > 0 && (
+          <div className={cn(
+            'flex items-center justify-between',
+            (stats.medicaments > 0 || stats.lpp > 0 || stats.autres > 0 || stats.consommable > 0 || stats.service > 0) && 'pt-1 border-t border-gray-200'
+          )}>
+            <span className="text-sm text-gray-600 flex items-center gap-1.5">
+              <span className="inline-flex items-center justify-center min-w-[24px] h-5 text-[10px] font-bold rounded bg-indigo-600 text-white px-1.5 shadow-sm">
+                MED IMP
+              </span>
+              Med. import
+            </span>
+            <span className="text-sm font-semibold text-gray-800">{stats.medicament_import}</span>
           </div>
         )}
       </div>

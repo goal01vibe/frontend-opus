@@ -53,7 +53,7 @@ export interface Document {
 export type TypeProduit = 'MEDICAMENT' | 'AUTRE' | null
 
 // Catégorie produit BCB/VIDAL (nouveau système 3 catégories)
-export type Categorie = 'MEDICAMENT' | 'LPP' | 'AUTRES' | null
+export type Categorie = 'MEDICAMENT' | 'LPP' | 'AUTRES' | 'CONSOMMABLE' | 'SERVICE' | 'MEDICAMENT_IMPORT' | null
 
 // Taux de remboursement BCB/VIDAL
 export type TauxRemboursement = '100%' | '90%' | '70%' | '65%' | '60%' | '30%' | '15%' | 'NR' | null

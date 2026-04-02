@@ -4,11 +4,13 @@ import { TypeTabs } from '@/components/layout/TypeTabs'
 import { DocumentFilters } from '@/components/filters/DocumentFilters'
 import { ExtractionsTable } from '@/components/extractions/ExtractionsTable'
 import { ExtractionDrawer } from '@/components/extractions/ExtractionDrawer'
+import { NonEnrichedView } from '@/components/enrichment/NonEnrichedView'
 import { Pagination } from '@/components/common/Pagination'
 import { useUIStore } from '@/stores/uiStore'
 import { useFilterStore } from '@/stores/filterStore'
 import { documentsService } from '@/services/documents'
 import { extractionsService } from '@/services/extractions'
+import { enrichmentService } from '@/services/enrichment'
 import { formatCurrency } from '@/lib/utils'
 import { Download, Plus, LayoutList, FileText, Loader2 } from 'lucide-react'
 import { useExport } from '@/hooks/useExport'
@@ -56,11 +58,20 @@ export function Extractions() {
     setPage, setPerPage,
   } = useFilterStore()
   const [viewMode, setViewMode] = useState<ViewMode>('documents')
+  const [showNonEnriched, setShowNonEnriched] = useState(false)
   const [linesPage, setLinesPage] = useState(1)
   const [linesPerPage, setLinesPerPage] = useState(50)
   const { exportToXLSX, exportToCSV } = useExport()
   const queryClient = useQueryClient()
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  // Non-enriched codes count for badge
+  const { data: nonEnrichedData } = useQuery({
+    queryKey: ['non-enriched-codes'],
+    queryFn: () => enrichmentService.getNonEnrichedCodes(),
+    staleTime: 60 * 1000,
+  })
+  const nonEnrichedCount = nonEnrichedData?.total_unique_codes ?? 0
 
   // Scroll to top when page changes
   useEffect(() => {
@@ -248,6 +259,18 @@ export function Extractions() {
           </button>
         </div>
 
+        {nonEnrichedCount > 0 && (
+          <>
+            <div className="w-px h-8 bg-gray-200" />
+            <button
+              onClick={() => setShowNonEnriched(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-sm font-medium hover:bg-amber-200 transition"
+            >
+              <span>{nonEnrichedCount} non enrichi{nonEnrichedCount > 1 ? 's' : ''}</span>
+            </button>
+          </>
+        )}
+
         <div className="w-px h-8 bg-gray-200" />
 
         <div className="flex flex-col">
@@ -292,56 +315,62 @@ export function Extractions() {
         </div>
       </div>
 
-      {/* Filters */}
-      <DocumentFilters fournisseurs={fournisseurs} />
+      {showNonEnriched ? (
+        <NonEnrichedView onClose={() => setShowNonEnriched(false)} />
+      ) : (
+        <>
+          {/* Filters */}
+          <DocumentFilters fournisseurs={fournisseurs} />
 
-      {/* Split View: Table + Drawer */}
-      <div className="flex-1 overflow-hidden relative flex flex-col">
-        <div
-          ref={scrollRef}
-          className={`flex-1 overflow-auto bg-gray-50 custom-scrollbar transition-all duration-300 ease-in-out ${
-            drawerOpen ? 'mr-[420px]' : 'mr-0'
-          }`}
-        >
-          <div className="px-6 pb-6 pt-0 w-full">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-64">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-                <span className="ml-3 text-gray-500">Chargement...</span>
+          {/* Split View: Table + Drawer */}
+          <div className="flex-1 overflow-hidden relative flex flex-col">
+            <div
+              ref={scrollRef}
+              className={`flex-1 overflow-auto bg-gray-50 custom-scrollbar transition-all duration-300 ease-in-out ${
+                drawerOpen ? 'mr-[420px]' : 'mr-0'
+              }`}
+            >
+              <div className="px-6 pb-6 pt-0 w-full">
+                {isLoading ? (
+                  <div className="flex items-center justify-center h-64">
+                    <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                    <span className="ml-3 text-gray-500">Chargement...</span>
+                  </div>
+                ) : viewMode === 'documents' ? (
+                  <ExtractionsTable data={documents} />
+                ) : (
+                  <ExtractionsTable data={documents} extractions={allExtractions} viewMode="lines" />
+                )}
               </div>
-            ) : viewMode === 'documents' ? (
-              <ExtractionsTable data={documents} />
-            ) : (
-              <ExtractionsTable data={documents} extractions={allExtractions} viewMode="lines" />
+            </div>
+
+            {/* Pagination (documents view) */}
+            {viewMode === 'documents' && !isLoading && totalCount > 0 && (
+              <Pagination
+                page={page}
+                perPage={perPage}
+                totalCount={totalCount}
+                onPageChange={setPage}
+                onPerPageChange={setPerPage}
+              />
             )}
+
+            {/* Pagination (lines view) */}
+            {viewMode === 'lines' && !isLoading && extractionsTotalCount > 0 && (
+              <Pagination
+                page={linesPage}
+                perPage={linesPerPage}
+                totalCount={extractionsTotalCount}
+                onPageChange={setLinesPage}
+                onPerPageChange={(pp) => { setLinesPerPage(pp); setLinesPage(1) }}
+              />
+            )}
+
+            {/* Drawer */}
+            <ExtractionDrawer document={selectedDocument} isOpen={drawerOpen} />
           </div>
-        </div>
-
-        {/* Pagination (documents view) */}
-        {viewMode === 'documents' && !isLoading && totalCount > 0 && (
-          <Pagination
-            page={page}
-            perPage={perPage}
-            totalCount={totalCount}
-            onPageChange={setPage}
-            onPerPageChange={setPerPage}
-          />
-        )}
-
-        {/* Pagination (lines view) */}
-        {viewMode === 'lines' && !isLoading && extractionsTotalCount > 0 && (
-          <Pagination
-            page={linesPage}
-            perPage={linesPerPage}
-            totalCount={extractionsTotalCount}
-            onPageChange={setLinesPage}
-            onPerPageChange={(pp) => { setLinesPerPage(pp); setLinesPage(1) }}
-          />
-        )}
-
-        {/* Drawer */}
-        <ExtractionDrawer document={selectedDocument} isOpen={drawerOpen} />
-      </div>
+        </>
+      )}
     </div>
   )
 }
