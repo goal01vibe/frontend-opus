@@ -12,13 +12,13 @@ interface CategorizeModalProps {
 }
 
 const CATEGORIES = [
-  { value: 'MEDICAMENT', label: 'Medicament' },
-  { value: 'MEDICAMENT_IMPORT', label: 'Medicament import' },
-  { value: 'LPP', label: 'Dispositif medical (LPP)' },
-  { value: 'CONSOMMABLE', label: 'Consommable' },
-  { value: 'AUTRES', label: 'Parapharmacie' },
-  { value: 'SERVICE', label: 'Service / Abonnement' },
-  { value: 'CONSIGNE', label: 'Consigne' },
+  { value: 'MEDICAMENT', label: 'Medicament', badge: 'MED', bg: 'bg-blue-500' },
+  { value: 'MEDICAMENT_IMPORT', label: 'Med. import', badge: 'MED IMP', bg: 'bg-indigo-600' },
+  { value: 'LPP', label: 'Dispositif medical', badge: 'LPP', bg: 'bg-green-500' },
+  { value: 'CONSOMMABLE', label: 'Consommable', badge: 'CONSO', bg: 'bg-orange-500' },
+  { value: 'AUTRES', label: 'Parapharmacie', badge: 'PARA', bg: 'bg-gray-400' },
+  { value: 'SERVICE', label: 'Service / Abo', badge: 'SERV', bg: 'bg-purple-500' },
+  { value: 'CONSIGNE', label: 'Consigne', badge: 'CSG', bg: 'bg-teal-500' },
 ] as const
 
 export function CategorizeModal({
@@ -121,22 +121,28 @@ export function CategorizeModal({
 
             {/* Category select */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Categorie <span className="text-red-500">*</span>
               </label>
-              <select
-                value={categorie}
-                onChange={(e) => setCategorie(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                required
-              >
-                <option value="">-- Choisir une categorie --</option>
+              <div className="grid grid-cols-2 gap-2">
                 {CATEGORIES.map((cat) => (
-                  <option key={cat.value} value={cat.value}>
-                    {cat.value} — {cat.label}
-                  </option>
+                  <button
+                    key={cat.value}
+                    type="button"
+                    onClick={() => setCategorie(cat.value)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-md border text-sm transition ${
+                      categorie === cat.value
+                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className={`inline-flex items-center justify-center min-w-[36px] h-5 text-[10px] font-bold rounded text-white px-1.5 shadow-sm ${cat.bg}`}>
+                      {cat.badge}
+                    </span>
+                    <span className="text-gray-700 truncate">{cat.label}</span>
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
 
             {/* Optional label */}
