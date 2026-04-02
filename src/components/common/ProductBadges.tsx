@@ -18,6 +18,7 @@ const categorieConfig: Record<string, { bg: string; text: string; label: string 
   CONSOMMABLE: { bg: 'bg-orange-500', text: 'text-white', label: 'CONSO' },
   SERVICE: { bg: 'bg-purple-500', text: 'text-white', label: 'SERV' },
   MEDICAMENT_IMPORT: { bg: 'bg-indigo-600', text: 'text-white', label: 'MED IMP' },
+  CONSIGNE: { bg: 'bg-teal-500', text: 'text-white', label: 'CSG' },
 }
 
 export function CategorieBadge({ categorie, isStupefiant = false, size = 'sm' }: CategorieBadgeProps) {
@@ -203,6 +204,8 @@ export function ProductSummary({ extractions }: ProductSummaryProps) {
         acc.service++
       } else if (cat === 'MEDICAMENT_IMPORT') {
         acc.medicament_import++
+      } else if (cat === 'CONSIGNE') {
+        acc.consigne++
       }
       return acc
     },
@@ -213,6 +216,7 @@ export function ProductSummary({ extractions }: ProductSummaryProps) {
       consommable: 0,
       service: 0,
       medicament_import: 0,
+      consigne: 0,
       taux100: 0,
       taux90: 0,
       taux70: 0,
@@ -225,7 +229,7 @@ export function ProductSummary({ extractions }: ProductSummaryProps) {
     }
   )
 
-  if (stats.medicaments === 0 && stats.lpp === 0 && stats.autres === 0 && stats.consommable === 0 && stats.service === 0 && stats.medicament_import === 0) return null
+  if (stats.medicaments === 0 && stats.lpp === 0 && stats.autres === 0 && stats.consommable === 0 && stats.service === 0 && stats.medicament_import === 0 && stats.consigne === 0) return null
 
   // Badges de taux pour le resume
   const tauxBadges: Array<{ count: number; bg: string; text: string; border?: string; label: string }> = [
@@ -363,6 +367,22 @@ export function ProductSummary({ extractions }: ProductSummaryProps) {
               Med. import
             </span>
             <span className="text-sm font-semibold text-gray-800">{stats.medicament_import}</span>
+          </div>
+        )}
+
+        {/* Consignes */}
+        {stats.consigne > 0 && (
+          <div className={cn(
+            'flex items-center justify-between',
+            (stats.medicaments > 0 || stats.lpp > 0 || stats.autres > 0 || stats.consommable > 0 || stats.service > 0 || stats.medicament_import > 0) && 'pt-1 border-t border-gray-200'
+          )}>
+            <span className="text-sm text-gray-600 flex items-center gap-1.5">
+              <span className="inline-flex items-center justify-center min-w-[24px] h-5 text-[10px] font-bold rounded bg-teal-500 text-white px-1.5 shadow-sm">
+                CSG
+              </span>
+              Consignes
+            </span>
+            <span className="text-sm font-semibold text-gray-800">{stats.consigne}</span>
           </div>
         )}
       </div>

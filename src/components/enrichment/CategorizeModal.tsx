@@ -18,6 +18,7 @@ const CATEGORIES = [
   { value: 'CONSOMMABLE', label: 'Consommable' },
   { value: 'AUTRES', label: 'Parapharmacie' },
   { value: 'SERVICE', label: 'Service / Abonnement' },
+  { value: 'CONSIGNE', label: 'Consigne' },
 ] as const
 
 export function CategorizeModal({
