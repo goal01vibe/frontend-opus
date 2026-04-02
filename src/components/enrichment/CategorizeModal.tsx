@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { enrichmentService } from '@/services/enrichment'
-import { X, Check, Loader2 } from 'lucide-react'
+import { X, Loader2 } from 'lucide-react'
 
 interface CategorizeModalProps {
   isOpen: boolean
@@ -30,26 +30,25 @@ export function CategorizeModal({
 }: CategorizeModalProps) {
   const [categorie, setCategorie] = useState('')
   const [label, setLabel] = useState('')
-  const [showSuccess, setShowSuccess] = useState(false)
   const queryClient = useQueryClient()
 
   const mutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (cat: string) =>
       enrichmentService.createManualEnrichment(
         codeArticle,
-        categorie,
+        cat,
         label.trim() || undefined
       ),
     onSuccess: () => {
-      setShowSuccess(true)
       queryClient.invalidateQueries({ queryKey: ['non-enriched-codes'] })
       queryClient.invalidateQueries({ queryKey: ['extractions'] })
       queryClient.invalidateQueries({ queryKey: ['documents'] })
       onSuccess()
-      setTimeout(() => {
-        setShowSuccess(false)
-        handleClose()
-      }, 1200)
+      // Close immediately — the product disappearing from the list IS the feedback
+      setCategorie('')
+      setLabel('')
+      mutation.reset()
+      onClose()
     },
   })
 
@@ -61,10 +60,9 @@ export function CategorizeModal({
     onClose()
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!categorie) return
-    mutation.mutate()
+  const handleCategorize = (cat: string) => {
+    setCategorie(cat)
+    mutation.mutate(cat)
   }
 
   if (!isOpen) return null
@@ -88,21 +86,8 @@ export function CategorizeModal({
           </button>
         </div>
 
-        {/* Success overlay */}
-        {showSuccess && (
-          <div className="flex flex-col items-center justify-center py-8 gap-3">
-            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-              <Check className="w-6 h-6 text-green-600" />
-            </div>
-            <p className="text-green-700 font-medium">
-              Categorisation enregistree ({mutation.data?.extractions_updated ?? 0} extractions mises a jour)
-            </p>
-          </div>
-        )}
-
         {/* Form */}
-        {!showSuccess && (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-4">
             {/* Code article (read-only) */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Code article</label>
@@ -119,33 +104,7 @@ export function CategorizeModal({
               </div>
             </div>
 
-            {/* Category select */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Categorie <span className="text-red-500">*</span>
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {CATEGORIES.map((cat) => (
-                  <button
-                    key={cat.value}
-                    type="button"
-                    onClick={() => setCategorie(cat.value)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-md border text-sm transition ${
-                      categorie === cat.value
-                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    <span className={`inline-flex items-center justify-center min-w-[36px] h-5 text-[10px] font-bold rounded text-white px-1.5 shadow-sm ${cat.bg}`}>
-                      {cat.badge}
-                    </span>
-                    <span className="text-gray-700 truncate">{cat.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Optional label */}
+            {/* Optional label — fill BEFORE clicking a badge */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Label <span className="text-gray-400 text-xs">(optionnel)</span>
@@ -159,6 +118,33 @@ export function CategorizeModal({
               />
             </div>
 
+            {/* Category badges — click = submit */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Cliquer pour categoriser :
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {CATEGORIES.map((cat) => (
+                  <button
+                    key={cat.value}
+                    type="button"
+                    onClick={() => handleCategorize(cat.value)}
+                    disabled={mutation.isPending}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-md border text-sm transition cursor-pointer ${
+                      categorie === cat.value
+                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    <span className={`inline-flex items-center justify-center min-w-[36px] h-5 text-[10px] font-bold rounded text-white px-1.5 shadow-sm ${cat.bg}`}>
+                      {cat.badge}
+                    </span>
+                    <span className="text-gray-700 truncate">{cat.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Error */}
             {mutation.isError && (
               <div className="px-3 py-2 bg-red-50 border border-red-200 rounded-md text-sm text-red-700">
@@ -166,33 +152,26 @@ export function CategorizeModal({
               </div>
             )}
 
-            {/* Buttons */}
-            <div className="flex gap-3 pt-2">
+            {/* Loading indicator */}
+            {mutation.isPending && (
+              <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                En cours...
+              </div>
+            )}
+
+            {/* Annuler */}
+            <div className="flex justify-center pt-2">
               <button
                 type="button"
                 onClick={handleClose}
                 disabled={mutation.isPending}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+                className="px-6 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
               >
                 Annuler
               </button>
-              <button
-                type="submit"
-                disabled={!categorie || mutation.isPending}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 rounded-md text-sm font-medium text-white hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {mutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    En cours...
-                  </>
-                ) : (
-                  'Valider'
-                )}
-              </button>
             </div>
-          </form>
-        )}
+          </div>
       </div>
     </div>
   )
