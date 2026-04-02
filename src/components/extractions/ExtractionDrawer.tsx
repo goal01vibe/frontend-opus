@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { Document, Page, pdfjs } from 'react-pdf'
 import {
   X,
@@ -29,7 +28,6 @@ import { ProductSummary } from '@/components/common/ProductBadges'
 import { useUIStore } from '@/stores/uiStore'
 import { documentsService } from '@/services/documents'
 import { extractionsService } from '@/services/extractions'
-import { enrichmentService, type CodeInfo } from '@/services/enrichment'
 import type { Document as DocumentType, Extraction } from '@/types'
 
 import 'react-pdf/dist/Page/AnnotationLayer.css'
@@ -69,15 +67,6 @@ export function ExtractionDrawer({ document, isOpen }: ExtractionDrawerProps) {
         .catch(console.error)
     }
   }, [document?.id, isOpen])
-
-  // Code info for the first extraction with a code_article
-  const firstCodeArticle = extractions.find(e => e.code_article)?.code_article
-  const { data: codeInfo } = useQuery({
-    queryKey: ['code-info', firstCodeArticle],
-    queryFn: () => enrichmentService.getCodeInfo(firstCodeArticle!),
-    enabled: !!firstCodeArticle,
-    staleTime: 5 * 60 * 1000, // 5 minutes cache
-  })
 
   if (!document) return null
 
@@ -357,9 +346,6 @@ export function ExtractionDrawer({ document, isOpen }: ExtractionDrawerProps) {
                   <ProductSummary extractions={extractions} />
                 )}
 
-                {/* Codes produit */}
-                {codeInfo && <CodeInfoSection codeInfo={codeInfo} compact />}
-
                 {/* Technical Info - Compact */}
                 <div className="space-y-2">
                   <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Infos techniques</h4>
@@ -441,9 +427,6 @@ export function ExtractionDrawer({ document, isOpen }: ExtractionDrawerProps) {
                 {extractions.length > 0 && (
                   <ProductSummary extractions={extractions} />
                 )}
-
-                {/* Codes produit */}
-                {codeInfo && <CodeInfoSection codeInfo={codeInfo} />}
 
                 {/* Technical Info */}
                 <div className="space-y-3">
@@ -582,47 +565,6 @@ export function ExtractionDrawer({ document, isOpen }: ExtractionDrawerProps) {
       </div>
       </div>
     </>
-  )
-}
-
-// Helper component for code info section
-function CodeInfoSection({ codeInfo, compact = false }: { codeInfo: CodeInfo; compact?: boolean }) {
-  const source = codeInfo.manual_override
-    ? 'Manuel'
-    : codeInfo.enrichment?.source || 'Aucun'
-
-  const sourceBadgeClasses: Record<string, string> = {
-    BCB: 'bg-blue-100 text-blue-700',
-    VIDAL: 'bg-green-100 text-green-700',
-    Manuel: 'bg-yellow-100 text-yellow-700',
-    Aucun: 'bg-gray-100 text-gray-500',
-  }
-
-  const badgeClass = sourceBadgeClasses[source] || sourceBadgeClasses.Aucun
-
-  return (
-    <div className={compact ? 'space-y-2' : 'space-y-3'}>
-      <div className="flex items-center justify-between">
-        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Codes produit</h4>
-        <span className={cn('px-2 py-0.5 rounded text-xs font-medium', badgeClass)}>
-          {source}
-        </span>
-      </div>
-      {codeInfo.codes.length > 0 ? (
-        <div className="bg-gray-50 rounded-lg p-3 space-y-1.5">
-          {codeInfo.codes.map((c, i) => (
-            <div key={i} className="flex items-center justify-between gap-2">
-              <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs shrink-0">
-                {c.type}
-              </span>
-              <span className="font-mono text-sm text-gray-800 truncate">{c.code}</span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-xs text-gray-400 italic">Non enrichi</p>
-      )}
-    </div>
   )
 }
 
