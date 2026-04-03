@@ -211,6 +211,20 @@ export function ExtractionsTable({ data, extractions = [], viewMode = 'documents
         ),
       },
       {
+        accessorKey: 'date_document',
+        header: 'Date facture',
+        size: 95,
+        cell: ({ getValue }) => {
+          const d = getValue() as string | null
+          if (!d) return <span className="text-gray-400">-</span>
+          try {
+            return <span className="text-xs text-gray-600">{new Date(d).toLocaleDateString('fr-FR')}</span>
+          } catch {
+            return <span className="text-xs text-gray-600">{d}</span>
+          }
+        },
+      },
+      {
         accessorKey: 'code_article',
         header: 'Code article',
         size: 130,
