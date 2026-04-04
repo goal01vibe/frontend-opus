@@ -227,11 +227,27 @@ export function ExtractionsTable({ data, extractions = [], viewMode = 'documents
       {
         accessorKey: 'code_article',
         header: 'Code article',
-        size: 130,
+        size: 145,
         meta: { sticky: true, stickyLeft: 60 },
-        cell: ({ getValue }) => (
-          <span className="font-mono text-sm">{getValue() as string || '-'}</span>
-        ),
+        cell: ({ row, getValue }) => {
+          const ext = row.original
+          const isReplaced = ext.is_active === false || !!ext.replaced_by
+          const tooltipText = ext.replaced_by
+            ? `Code remplace par ${ext.replaced_by_denomination || ext.replaced_by}${ext.retired_date ? ` — retire le ${ext.retired_date}` : ''}`
+            : ext.is_active === false
+              ? `Produit retire du marche${ext.retired_date ? ` le ${ext.retired_date}` : ''}`
+              : ''
+          return (
+            <span className="inline-flex items-center">
+              <span className="font-mono text-sm">{getValue() as string || '-'}</span>
+              {isReplaced && (
+                <span title={tooltipText} className="ml-1 shrink-0">
+                  <AlertTriangle className="w-[18px] h-[18px] text-amber-500" />
+                </span>
+              )}
+            </span>
+          )
+        },
       },
       {
         accessorKey: 'designation_article',

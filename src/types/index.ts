@@ -94,6 +94,11 @@ export interface Extraction {
     x2: number
     y2: number
   }
+  // Lifecycle (codes remplacés/retirés)
+  is_active?: boolean
+  replaced_by?: string | null
+  replaced_by_denomination?: string | null
+  retired_date?: string | null
   // Document metadata (returned by GET /extractions)
   document_name?: string
   numero_facture?: string

@@ -1,5 +1,21 @@
 import api from './api'
 
+// --- Types (Replaced Codes) ---
+
+export interface ReplacedCode {
+  code_article: string
+  denomination_sample: string
+  replaced_by: string | null
+  replaced_by_denomination: string | null
+  retired_date: string | null
+  extraction_count: number
+}
+
+export interface ReplacedCodesResponse {
+  codes: ReplacedCode[]
+  total_replaced: number
+}
+
 // --- Types ---
 
 export interface CodeInfo {
@@ -90,6 +106,12 @@ export const enrichmentService = {
     const { data } = await api.get<{ total: number; items: ManualEnrichment[] }>(
       '/api/product-reference/manual-enrichment'
     )
+    return data
+  },
+
+  getReplacedCodes: async (documentId?: number): Promise<ReplacedCodesResponse> => {
+    const params = documentId ? `?document_id=${documentId}` : ''
+    const { data } = await api.get<ReplacedCodesResponse>(`/api/v1/extractions/replaced-codes${params}`)
     return data
   },
 }

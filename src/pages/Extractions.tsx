@@ -12,7 +12,7 @@ import { documentsService } from '@/services/documents'
 import { extractionsService } from '@/services/extractions'
 import { enrichmentService } from '@/services/enrichment'
 import { formatCurrency } from '@/lib/utils'
-import { Download, Plus, LayoutList, FileText, Loader2 } from 'lucide-react'
+import { Download, Plus, LayoutList, FileText, Loader2, AlertTriangle } from 'lucide-react'
 import { useExport } from '@/hooks/useExport'
 import type { Document as DocumentType, Extraction } from '@/types'
 
@@ -59,6 +59,7 @@ export function Extractions() {
   } = useFilterStore()
   const [viewMode, setViewMode] = useState<ViewMode>('documents')
   const [showNonEnriched, setShowNonEnriched] = useState(false)
+  const [showReplacedCodes, setShowReplacedCodes] = useState(false)
   const [linesPage, setLinesPage] = useState(1)
   const [linesPerPage, setLinesPerPage] = useState(50)
   const { exportToXLSX, exportToCSV } = useExport()
@@ -72,6 +73,14 @@ export function Extractions() {
     staleTime: 60 * 1000,
   })
   const nonEnrichedCount = nonEnrichedData?.total_unique_codes ?? 0
+
+  // Replaced codes count for badge
+  const { data: replacedCodesData } = useQuery({
+    queryKey: ['replaced-codes'],
+    queryFn: () => enrichmentService.getReplacedCodes(),
+    staleTime: 60 * 1000,
+  })
+  const replacedCodesCount = replacedCodesData?.total_replaced ?? 0
 
   // Scroll to top when page changes
   useEffect(() => {
@@ -124,8 +133,13 @@ export function Extractions() {
   const totalCount = serverResponse?.total_count || 0
   const aggregations = serverResponse?.aggregations
   const fournisseurs = serverResponse?.fournisseurs || []
-  const allExtractions = extractionsData?.extractions || []
+  const rawExtractions = extractionsData?.extractions || []
   const extractionsTotalCount = extractionsData?.total_count || 0
+
+  // Filter extractions for replaced codes view
+  const allExtractions = showReplacedCodes
+    ? rawExtractions.filter(ext => ext.is_active === false || !!ext.replaced_by)
+    : rawExtractions
 
   // Prefetch next page of documents
   useEffect(() => {
@@ -267,6 +281,27 @@ export function Extractions() {
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-sm font-medium hover:bg-amber-200 transition"
             >
               <span>{nonEnrichedCount} non enrichi{nonEnrichedCount > 1 ? 's' : ''}</span>
+            </button>
+          </>
+        )}
+
+        {replacedCodesCount > 0 && (
+          <>
+            <div className="w-px h-8 bg-gray-200" />
+            <button
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium transition ${
+                showReplacedCodes
+                  ? 'bg-orange-200 text-orange-800 ring-2 ring-orange-400'
+                  : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+              }`}
+              onClick={() => {
+                const next = !showReplacedCodes
+                setShowReplacedCodes(next)
+                if (next) setViewMode('lines')
+              }}
+            >
+              <AlertTriangle className="w-3.5 h-3.5" />
+              <span>{replacedCodesCount} code{replacedCodesCount > 1 ? 's' : ''} remplac{replacedCodesCount > 1 ? 'es' : 'e'}</span>
             </button>
           </>
         )}
