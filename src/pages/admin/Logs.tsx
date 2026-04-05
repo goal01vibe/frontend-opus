@@ -158,9 +158,9 @@ function AdminLogs() {
       {/* Logs Container */}
       <div className="flex-1 bg-slate-900 rounded-lg overflow-hidden shadow-lg">
         <div className="h-full overflow-y-auto custom-scrollbar p-4 font-mono text-sm">
-          {filteredLogs.map((log) => (
+          {filteredLogs.map((log, idx) => (
             <div
-              key={log.id}
+              key={`${log.id}-${idx}`}
               className="flex items-start gap-3 py-1 hover:bg-slate-800 px-2 rounded"
             >
               <span className="text-slate-500 flex-shrink-0">{formatTime(log.timestamp)}</span>
