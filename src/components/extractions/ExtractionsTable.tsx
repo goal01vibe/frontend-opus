@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useCallback } from 'react'
+import ReactDOM from 'react-dom'
 import {
   useReactTable,
   getCoreRowModel,
@@ -15,8 +16,116 @@ import { ConfidenceBadge } from '@/components/common/ConfidenceBadge'
 import { useUIStore } from '@/stores/uiStore'
 import { useFilterStore } from '@/stores/filterStore'
 import type { Document, Extraction } from '@/types'
-import { ArrowUpDown, ChevronDown, ChevronUp, AlertTriangle, Thermometer } from 'lucide-react'
+import { ArrowUpDown, ChevronDown, ChevronUp, AlertTriangle, ArrowRightLeft, Copy, Check, Thermometer } from 'lucide-react'
 import { ProductBadges } from '@/components/common/ProductBadges'
+
+/** Inline cell component for code_article with lifecycle icons + popover (portal-based) */
+function CodeArticleCell({ code, ext }: { code: string; ext: Extraction }) {
+  const [showPopover, setShowPopover] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null)
+
+  const handleCopy = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (ext.replaced_by) {
+      navigator.clipboard.writeText(ext.replaced_by)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    }
+  }, [ext.replaced_by])
+
+  const togglePopover = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (showPopover) {
+      setShowPopover(false)
+      setPopoverPos(null)
+    } else {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+      const popoverWidth = 256 // w-64 = 16rem = 256px
+      const popoverHeight = 80 // approximate height of popover content
+      const gap = 4
+
+      // Determine vertical position: below by default, above if not enough space
+      let top = rect.bottom + gap
+      if (top + popoverHeight > window.innerHeight) {
+        top = rect.top - popoverHeight - gap
+      }
+
+      // Clamp horizontal position so popover doesn't go off-screen right
+      let left = rect.left
+      if (left + popoverWidth > window.innerWidth - 8) {
+        left = window.innerWidth - popoverWidth - 8
+      }
+      if (left < 8) left = 8
+
+      setPopoverPos({ top, left })
+      setShowPopover(true)
+    }
+  }, [showPopover])
+
+  const closePopover = useCallback(() => {
+    setShowPopover(false)
+    setPopoverPos(null)
+  }, [])
+
+  const hasReplacement = !!ext.replaced_by
+  const isRetiredOnly = ext.is_active === false && !ext.replaced_by
+
+  return (
+    <span className="inline-flex items-center">
+      <span className="font-mono text-sm">{code || '-'}</span>
+      {hasReplacement && (
+        <>
+          <span
+            title={`Remplacé par ${ext.replaced_by_denomination || ''} (${ext.replaced_by})`}
+            className="ml-1 shrink-0 cursor-pointer"
+            onClick={togglePopover}
+          >
+            <ArrowRightLeft className="w-[18px] h-[18px] text-red-500" />
+          </span>
+          {showPopover && popoverPos && ReactDOM.createPortal(
+            <>
+              {/* Backdrop to close on click outside */}
+              <div className="fixed inset-0 z-[9998]" onClick={(e) => { e.stopPropagation(); closePopover(); }} />
+              <div
+                className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-sm w-64"
+                style={{ top: popoverPos.top, left: popoverPos.left }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {ext.replaced_by_denomination && (
+                  <div className="font-medium text-gray-700 mb-1">{ext.replaced_by_denomination}</div>
+                )}
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">{ext.replaced_by}</span>
+                  <button
+                    onClick={handleCopy}
+                    className="p-1 rounded hover:bg-gray-100 transition"
+                    title="Copier le code"
+                  >
+                    {copied
+                      ? <Check className="w-3.5 h-3.5 text-green-500" />
+                      : <Copy className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
+                    }
+                  </button>
+                  {copied && <span className="text-xs text-green-600">Copié !</span>}
+                </div>
+              </div>
+            </>,
+            document.body
+          )}
+        </>
+      )}
+      {isRetiredOnly && (
+        <span
+          title={`Produit retiré du marché${ext.retired_date ? ` le ${ext.retired_date}` : ''}`}
+          className="ml-1 shrink-0"
+        >
+          <AlertTriangle className="w-[18px] h-[18px] text-amber-500" />
+        </span>
+      )}
+    </span>
+  )
+}
 
 interface ExtractionsTableProps {
   data: Document[]
@@ -231,21 +340,8 @@ export function ExtractionsTable({ data, extractions = [], viewMode = 'documents
         meta: { sticky: true, stickyLeft: 60 },
         cell: ({ row, getValue }) => {
           const ext = row.original
-          const isReplaced = ext.is_active === false || !!ext.replaced_by
-          const tooltipText = ext.replaced_by
-            ? `Code remplace par ${ext.replaced_by_denomination || ext.replaced_by}${ext.retired_date ? ` — retire le ${ext.retired_date}` : ''}`
-            : ext.is_active === false
-              ? `Produit retire du marche${ext.retired_date ? ` le ${ext.retired_date}` : ''}`
-              : ''
           return (
-            <span className="inline-flex items-center">
-              <span className="font-mono text-sm">{getValue() as string || '-'}</span>
-              {isReplaced && (
-                <span title={tooltipText} className="ml-1 shrink-0">
-                  <AlertTriangle className="w-[18px] h-[18px] text-amber-500" />
-                </span>
-              )}
-            </span>
+            <CodeArticleCell code={getValue() as string} ext={ext} />
           )
         },
       },

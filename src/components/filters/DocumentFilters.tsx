@@ -46,7 +46,8 @@ export function DocumentFilters({ fournisseurs = [] }: DocumentFiltersProps) {
     productFilters.categorie_produit || productFilters.taux_remboursement ||
     (productFilters.is_active !== undefined && productFilters.is_active !== null) ||
     (productFilters.is_cold_chain !== undefined && productFilters.is_cold_chain !== null) ||
-    (productFilters.is_stupefiant !== undefined && productFilters.is_stupefiant !== null)
+    (productFilters.is_stupefiant !== undefined && productFilters.is_stupefiant !== null) ||
+    (productFilters.lifecycle_filter !== undefined && productFilters.lifecycle_filter !== null)
 
   return (
     <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
@@ -121,16 +122,31 @@ export function DocumentFilters({ fournisseurs = [] }: DocumentFiltersProps) {
           </select>
 
           <select
-            value={productFilters.is_active === null || productFilters.is_active === undefined ? '' : productFilters.is_active ? 'active' : 'inactive'}
+            value={
+              productFilters.lifecycle_filter
+                ? `lifecycle:${productFilters.lifecycle_filter}`
+                : productFilters.is_active === true
+                  ? 'active'
+                  : ''
+            }
             onChange={(e) => {
               const v = e.target.value
-              setProductFilters({ is_active: v === 'active' ? true : v === 'inactive' ? false : null })
+              if (v === 'active') {
+                setProductFilters({ is_active: true, lifecycle_filter: null })
+              } else if (v.startsWith('lifecycle:')) {
+                const lf = v.replace('lifecycle:', '')
+                setProductFilters({ is_active: null, lifecycle_filter: lf })
+              } else {
+                setProductFilters({ is_active: null, lifecycle_filter: null })
+              }
             }}
             className="px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-blue-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition shadow-sm"
           >
-            <option value="">Statut produit</option>
+            <option value="">Tous les statuts</option>
             <option value="active">Actif</option>
-            <option value="inactive">Retiré / Remplacé</option>
+            <option value="lifecycle:suppressed">Supprimé</option>
+            <option value="lifecycle:replaced">Remplacé</option>
+            <option value="lifecycle:retired">Retiré (tous)</option>
           </select>
 
           <select
@@ -260,10 +276,21 @@ export function DocumentFilters({ fournisseurs = [] }: DocumentFiltersProps) {
               </button>
             </span>
           )}
-          {productFilters.is_active === false && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs">
-              Retirés / Remplacés
+          {productFilters.is_active === true && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
+              Actif
               <button onClick={() => setProductFilters({ is_active: null })}>
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+          {productFilters.lifecycle_filter && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs">
+              {productFilters.lifecycle_filter === 'suppressed' ? 'Supprimé' :
+               productFilters.lifecycle_filter === 'replaced' ? 'Remplacé' :
+               productFilters.lifecycle_filter === 'retired' ? 'Retiré (tous)' :
+               productFilters.lifecycle_filter}
+              <button onClick={() => setProductFilters({ lifecycle_filter: null })}>
                 <X className="w-3 h-3" />
               </button>
             </span>

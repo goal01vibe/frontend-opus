@@ -19,8 +19,9 @@
 | `src/hooks/useChunkedUpload.ts` | **Create** | Chunk splitting, sequential upload loop, cancel, timeout |
 | `src/components/extraction/GlobalUploadProgress.tsx` | **Create** | Global progress bar with cancel button |
 | `src/components/extraction/ExtractionModal.tsx` | **Modify** | Wire hook + component, multi-batch SSE filtering |
+| `src/services/extractions.ts` | **Modify** | Add AbortSignal + confidence_threshold params |
 
-No changes to: `extractionStore.ts`, `extractions.ts`, `useAdminStream.ts`, `types/index.ts`, backend.
+No changes to: `extractionStore.ts`, `useAdminStream.ts`, `types/index.ts`, backend.
 
 ---
 
@@ -114,7 +115,7 @@ export function useChunkedUpload(options: UseChunkedUploadOptions = {}) {
 
         const result = await extractionsService.extractBatch(
           chunks[i],
-          { template: undefined },
+          { template: undefined, confidence_threshold: confidenceThreshold },
           timeoutController.signal,
         )
 
@@ -203,13 +204,16 @@ extractBatch: async (
 // AFTER:
 extractBatch: async (
   files: File[],
-  options: { template?: string } = {},
+  options: { template?: string; confidence_threshold?: number } = {},
   signal?: AbortSignal,
 ): Promise<{ batch_id: string; task_ids: string[]; stream_endpoint: string }> => {
   const formData = new FormData()
   files.forEach(file => formData.append('files', file))
   if (options.template) {
     formData.append('template', options.template)
+  }
+  if (options.confidence_threshold !== undefined) {
+    formData.append('confidence_threshold', String(options.confidence_threshold))
   }
   const { data } = await api.post('/extract-batch-worker', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -363,11 +367,20 @@ const activeBatchIdsRef = useRef<Set<string>>(new Set())
 const allChunksSentRef = useRef(false)
 ```
 
-After the refs, add the chunked upload hook:
+After the refs, add the chunked upload hook (destructure for stable refs):
 ```typescript
 const CHUNK_SIZE = 50
 
-const chunkedUpload = useChunkedUpload({
+const {
+  startUpload: startChunkedUpload,
+  cancel: cancelUpload,
+  reset: resetUpload,
+  uploadPhase,
+  allChunksSent,
+  chunksUploaded,
+  totalChunks,
+} = useChunkedUpload({
+  confidenceThreshold: confidence,
   chunkSize: CHUNK_SIZE,
   onBatchIdCreated: useCallback((batchId: string) => {
     activeBatchIdsRef.current.add(batchId)
@@ -382,9 +395,18 @@ const chunkedUpload = useChunkedUpload({
 })
 ```
 
-- [ ] **Step 3: Update `onBatchProgress` SSE filter to use Set**
+- [ ] **Step 3: Fix SSE destructuring + update filter to use Set**
 
-Replace lines 28-31 (the batch_id filter):
+First, fix the dead variable in destructuring (line 26):
+```typescript
+// BEFORE:
+const { isConnected, onBatchProgress } = useAdminStream({
+
+// AFTER (remove dead onBatchProgress variable):
+const { isConnected } = useAdminStream({
+```
+
+Then replace lines 28-31 (the batch_id filter inside the callback):
 ```typescript
 // BEFORE:
 if (!currentBatchIdRef.current || data.batch_id !== currentBatchIdRef.current) {
@@ -463,7 +485,7 @@ const handleExtract = async () => {
   }
 
   // Start chunked upload — marks files as processing when each chunk succeeds
-  await chunkedUpload.startUpload(filesToUpload, markChunkFilesFailed)
+  await startChunkedUpload(filesToUpload, markChunkFilesFailed)
 
   // After loop: mark remaining 'uploading' files as 'processing' (they were sent successfully)
   setFiles((prev) =>
@@ -485,13 +507,13 @@ const handleClose = useCallback(() => {
 // AFTER:
 const handleClose = useCallback(() => {
   if (isUploading) {
-    chunkedUpload.cancel()
+    cancelUpload()
   }
   activeBatchIdsRef.current = new Set()
   allChunksSentRef.current = false
-  chunkedUpload.reset()
+  resetUpload()
   closeUploadModal()
-}, [closeUploadModal, isUploading, chunkedUpload])
+}, [closeUploadModal, isUploading, cancelUpload, resetUpload])
 ```
 
 - [ ] **Step 7: Add `GlobalUploadProgress` to JSX**
@@ -505,9 +527,9 @@ Insert just before the file list `<div className="max-h-60 ...">` (before line 3
     totalFiles={files.length}
     completedFiles={completedFiles.length}
     failedFiles={failedFiles.length}
-    totalChunks={chunkedUpload.totalChunks}
-    chunksUploaded={chunkedUpload.chunksUploaded}
-    onCancel={chunkedUpload.cancel}
+    totalChunks={totalChunks}
+    chunksUploaded={chunksUploaded}
+    onCancel={cancelUpload}
   />
 )}
 ```
@@ -524,10 +546,10 @@ const chunkedUpload = useChunkedUpload({
     activeBatchIdsRef.current.add(batchId)
   }, []),
   onChunkSent: useCallback((_batchId: string, _chunkIndex: number) => {
-    // Mark uploading files as processing progressively
-    // Files from completed chunks are now in the backend pipeline
+    // Mark next CHUNK_SIZE uploading files as processing
+    // Status guard skips already-processing files from previous chunks
     setFiles((prev) => {
-      let remaining = (_chunkIndex + 1) * CHUNK_SIZE
+      let remaining = CHUNK_SIZE
       return prev.map((f) => {
         if (f.status === 'uploading' && remaining > 0) {
           remaining--

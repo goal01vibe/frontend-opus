@@ -121,8 +121,11 @@ export function Extractions() {
     categorie_fournisseur: activeType,
     search: searchTerm || undefined,
     // Filtres attributs produit (seulement si définis)
-    // showReplacedCodes force is_active=false côté serveur (pas de filtre client-side)
-    ...(showReplacedCodes ? { is_active: false } : (productFilters.is_active !== undefined && productFilters.is_active !== null && { is_active: productFilters.is_active })),
+    // showReplacedCodes force lifecycle_filter=retired côté serveur
+    ...(showReplacedCodes ? { lifecycle_filter: 'retired' } : {
+      ...(productFilters.is_active !== undefined && productFilters.is_active !== null && { is_active: productFilters.is_active }),
+      ...(productFilters.lifecycle_filter && { lifecycle_filter: productFilters.lifecycle_filter }),
+    }),
     ...(productFilters.is_cold_chain !== undefined && productFilters.is_cold_chain !== null && { is_cold_chain: productFilters.is_cold_chain }),
     ...(productFilters.categorie_produit && { categorie_produit: productFilters.categorie_produit }),
     ...(productFilters.is_stupefiant !== undefined && productFilters.is_stupefiant !== null && { is_stupefiant: productFilters.is_stupefiant }),
@@ -185,6 +188,7 @@ export function Extractions() {
         ...(productFilters.categorie_produit && { categorie_produit: productFilters.categorie_produit }),
         ...(productFilters.is_stupefiant !== undefined && productFilters.is_stupefiant !== null && { is_stupefiant: productFilters.is_stupefiant }),
         ...(productFilters.taux_remboursement && { taux_remboursement: productFilters.taux_remboursement }),
+        ...(productFilters.lifecycle_filter && { lifecycle_filter: productFilters.lifecycle_filter }),
       }
       queryClient.prefetchQuery({
         queryKey: ['extractions', nextParams],
@@ -312,7 +316,7 @@ export function Extractions() {
               }}
             >
               <AlertTriangle className="w-3.5 h-3.5" />
-              <span>{replacedCodesCount} code{replacedCodesCount > 1 ? 's' : ''} remplac{replacedCodesCount > 1 ? 'es' : 'e'}</span>
+              <span>{replacedCodesCount} code{replacedCodesCount > 1 ? 's' : ''} retiré{replacedCodesCount > 1 ? 's' : ''}</span>
             </button>
           </>
         )}

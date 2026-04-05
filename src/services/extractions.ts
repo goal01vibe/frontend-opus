@@ -19,6 +19,7 @@ interface ExtractionsParams {
   categorie_produit?: string
   is_stupefiant?: boolean
   taux_remboursement?: string
+  lifecycle_filter?: string
 }
 
 interface ExtractionsApiResponse {

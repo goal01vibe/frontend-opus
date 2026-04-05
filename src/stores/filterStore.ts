@@ -23,6 +23,7 @@ interface FilterStoreState {
     categorie_produit?: string | null
     is_stupefiant?: boolean | null
     taux_remboursement?: string | null
+    lifecycle_filter?: string | null
   }
   // Actions
   setActiveType: (type: FournisseurType) => void
