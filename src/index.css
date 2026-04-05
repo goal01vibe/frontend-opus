@@ -86,3 +86,28 @@
 .row-group-b {
   background-color: #f1f5f9;
 }
+
+/* Radix Popover animations */
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+[data-radix-popper-content-wrapper] [data-state="open"][data-side="bottom"] {
+  animation: slideDown 150ms ease-out;
+}
+[data-radix-popper-content-wrapper] [data-state="open"][data-side="top"] {
+  animation: slideUp 150ms ease-out;
+}
+
+/* Hide scrollbar for filter chips */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

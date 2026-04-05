@@ -254,6 +254,29 @@ export function Extractions() {
 
   const isLoading = loadingDocs || (viewMode === 'lines' && loadingExtractions)
 
+  const actionButtons = (
+    <>
+      <button
+        onClick={handleExportCSV}
+        className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded text-sm font-medium text-gray-600 hover:bg-gray-50 transition shadow-sm whitespace-nowrap"
+      >
+        <Download className="w-4 h-4" />
+        <span className="hidden sm:inline">CSV</span>
+      </button>
+      <button
+        onClick={handleExportXLSX}
+        className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded text-sm font-medium text-gray-600 hover:bg-gray-50 transition shadow-sm whitespace-nowrap"
+      >
+        <Download className="w-4 h-4" />
+        <span className="hidden sm:inline">XLSX</span>
+      </button>
+      <button className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 border border-blue-600 rounded text-sm font-medium text-white hover:bg-blue-700 transition shadow-sm whitespace-nowrap">
+        <Plus className="w-4 h-4" />
+        <span className="hidden sm:inline">Nouvelle</span>
+      </button>
+    </>
+  )
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       {/* KPI Bar */}
@@ -341,28 +364,6 @@ export function Extractions() {
           <span className="text-base font-bold text-blue-600">{formatCurrency(totals.ttc)}</span>
         </div>
 
-        <div className="flex-grow" />
-
-        <div className="flex gap-2 shrink-0">
-          <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded text-sm font-medium text-gray-600 hover:bg-gray-50 transition shadow-sm whitespace-nowrap"
-          >
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">CSV</span>
-          </button>
-          <button
-            onClick={handleExportXLSX}
-            className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded text-sm font-medium text-gray-600 hover:bg-gray-50 transition shadow-sm whitespace-nowrap"
-          >
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">XLSX</span>
-          </button>
-          <button className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 border border-blue-600 rounded text-sm font-medium text-white hover:bg-blue-700 transition shadow-sm whitespace-nowrap">
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Nouvelle</span>
-          </button>
-        </div>
       </div>
 
       {showNonEnriched ? (
@@ -376,7 +377,7 @@ export function Extractions() {
       ) : (
         <>
           {/* Filters */}
-          <DocumentFilters fournisseurs={fournisseurs} />
+          <DocumentFilters fournisseurs={fournisseurs} actions={actionButtons} />
 
           {/* Split View: Table + Drawer */}
           <div className="flex-1 overflow-hidden relative flex flex-col">
