@@ -14,8 +14,6 @@ interface FilterStoreState {
   // Sorting
   sortBy: string
   sortOrder: 'asc' | 'desc'
-  // Replaced codes filter
-  showReplacedOnly: boolean
   // Filtres attributs produit
   productFilters: {
     is_active?: boolean | null
@@ -35,7 +33,6 @@ interface FilterStoreState {
   setPage: (page: number) => void
   setPerPage: (perPage: number) => void
   setSort: (sortBy: string, sortOrder: 'asc' | 'desc') => void
-  setShowReplacedOnly: (show: boolean) => void
   setProductFilters: (filters: Partial<FilterStoreState['productFilters']>) => void
   resetFilters: () => void
 }
@@ -63,7 +60,6 @@ export const useFilterStore = create<FilterStoreState>((set) => ({
   perPage: 50,
   sortBy: 'date_extraction',
   sortOrder: 'desc',
-  showReplacedOnly: false,
   productFilters: {},
 
   setActiveType: (type) => set({ activeType: type, selectedFournisseur: null, page: 1 }),
@@ -78,7 +74,6 @@ export const useFilterStore = create<FilterStoreState>((set) => ({
   setPage: (page) => set({ page }),
   setPerPage: (perPage) => set({ perPage, page: 1 }),
   setSort: (sortBy, sortOrder) => set({ sortBy, sortOrder, page: 1 }),
-  setShowReplacedOnly: (show) => set({ showReplacedOnly: show }),
   setProductFilters: (filters) => set((state) => ({
     productFilters: { ...state.productFilters, ...filters },
     page: 1,
@@ -88,7 +83,6 @@ export const useFilterStore = create<FilterStoreState>((set) => ({
     searchTerm: '',
     sqlQuery: '',
     selectedFournisseur: null,
-    showReplacedOnly: false,
     productFilters: {},
     page: 1,
   }),

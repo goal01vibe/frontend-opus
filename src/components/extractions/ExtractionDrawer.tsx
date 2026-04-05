@@ -34,8 +34,8 @@ import type { Document as DocumentType } from '@/types'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 
-// Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
+// Configure PDF.js worker (local, no CDN dependency)
+pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 
 interface ExtractionDrawerProps {
   document: DocumentType | null
@@ -552,10 +552,18 @@ export function ExtractionDrawer({ document, isOpen }: ExtractionDrawerProps) {
           <Download className="w-4 h-4" />
           Télécharger
         </button>
-        <button className="px-3 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg hover:bg-gray-100 hover:text-orange-600 hover:border-orange-200 transition text-sm">
+        <button
+          disabled
+          title="Fonctionnalité à venir"
+          className="px-3 py-2 border border-gray-300 bg-white text-gray-400 rounded-lg cursor-not-allowed transition text-sm"
+        >
           <AlertTriangle className="w-4 h-4" />
         </button>
-        <button className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-sm shadow-sm flex items-center justify-center gap-2">
+        <button
+          disabled
+          title="Fonctionnalité à venir"
+          className="flex-1 px-3 py-2 bg-blue-400 text-white rounded-lg cursor-not-allowed transition font-medium text-sm shadow-sm flex items-center justify-center gap-2"
+        >
           <CheckCircle className="w-4 h-4" />
           Valider
         </button>

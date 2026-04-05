@@ -8,6 +8,7 @@ import {
   flexRender,
   type ColumnDef,
   type SortingState,
+  type Updater,
 } from '@tanstack/react-table'
 import { cn } from '@/lib/utils'
 import { formatFullCurrency, formatDate, formatCurrency } from '@/lib/utils'
@@ -142,7 +143,7 @@ export const ExtractionsTable = React.memo(function ExtractionsTable({ data, ext
     ? [{ id: sortBy, desc: sortOrder === 'desc' }]
     : []
 
-  const handleSortingChange = (updater: any) => {
+  const handleSortingChange = (updater: Updater<SortingState>) => {
     const newSorting = typeof updater === 'function' ? updater(sorting) : updater
     if (newSorting.length > 0) {
       setSort(newSorting[0].id, newSorting[0].desc ? 'desc' : 'asc')
@@ -152,11 +153,16 @@ export const ExtractionsTable = React.memo(function ExtractionsTable({ data, ext
   }
   const { openDrawer, selectedId } = useUIStore()
 
-  // For documents view: group by document ID
-  const documentGroups = useMemo(() => {
-    const groups = new Set<number>()
-    data.forEach((doc) => groups.add(doc.id))
-    return Array.from(groups)
+  // For documents view: map documentId → index for O(1) row color lookup
+  const documentGroupMap = useMemo(() => {
+    const map = new Map<number, number>()
+    let index = 0
+    data.forEach((doc) => {
+      if (!map.has(doc.id)) {
+        map.set(doc.id, index++)
+      }
+    })
+    return map
   }, [data])
 
   // For lines view: group extractions by document_id with alternating colors
@@ -183,7 +189,7 @@ export const ExtractionsTable = React.memo(function ExtractionsTable({ data, ext
       const colorIndex = extractionGroups.get(id) ?? 0
       return colorIndex === 0 ? 'bg-slate-50' : 'bg-slate-100'
     }
-    const groupIndex = documentGroups.indexOf(id)
+    const groupIndex = documentGroupMap.get(id) ?? 0
     return groupIndex % 2 === 0 ? 'bg-slate-50' : 'bg-slate-100'
   }
 
@@ -464,8 +470,12 @@ export const ExtractionsTable = React.memo(function ExtractionsTable({ data, ext
     []
   )
 
+  // Pass empty arrays to the inactive table to avoid processing unused data
+  const emptyDocuments: Document[] = []
+  const emptyExtractions: Extraction[] = []
+
   const documentsTable = useReactTable({
-    data,
+    data: viewMode === 'documents' ? data : emptyDocuments,
     columns: documentColumns,
     state: { sorting },
     onSortingChange: handleSortingChange,
@@ -476,7 +486,7 @@ export const ExtractionsTable = React.memo(function ExtractionsTable({ data, ext
   })
 
   const extractionsTable = useReactTable({
-    data: extractions,
+    data: viewMode === 'lines' ? extractions : emptyExtractions,
     columns: extractionColumns,
     state: { sorting },
     onSortingChange: handleSortingChange,

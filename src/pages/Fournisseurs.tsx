@@ -115,8 +115,8 @@ function Fournisseurs() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {fournisseurs.map((f) => (
-              <tr key={f.name} className="hover:bg-gray-50 cursor-pointer">
+            {fournisseurs.map((f, idx) => (
+              <tr key={f.name ?? `unknown-${idx}`} className="hover:bg-gray-50 cursor-pointer">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
                     <div
@@ -125,9 +125,9 @@ function Fournisseurs() {
                         f.type === 'GROSSISTE' ? 'bg-blue-500' : 'bg-purple-500'
                       )}
                     >
-                      {f.name.substring(0, 2).toUpperCase()}
+                      {(f.name ?? '').substring(0, 2).toUpperCase() || '??'}
                     </div>
-                    <span className="font-medium text-gray-800">{f.name}</span>
+                    <span className="font-medium text-gray-800">{f.name ?? 'Inconnu'}</span>
                   </div>
                 </td>
                 <td className="px-6 py-4">

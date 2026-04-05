@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import {
@@ -50,17 +50,25 @@ export function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const isActive = (path?: string) => {
-    if (!path) return false
-    return location.pathname === path
-  }
+  const currentPath = location.pathname
 
-  const isParentActive = (item: MenuItem) => {
-    if (item.children) {
-      return item.children.some(child => isActive(child.path))
-    }
-    return isActive(item.path)
-  }
+  const isActive = useCallback(
+    (path?: string) => {
+      if (!path) return false
+      return currentPath === path
+    },
+    [currentPath],
+  )
+
+  const isParentActive = useCallback(
+    (item: MenuItem) => {
+      if (item.children) {
+        return item.children.some(child => isActive(child.path))
+      }
+      return isActive(item.path)
+    },
+    [isActive],
+  )
 
   const toggleExpanded = (id: string) => {
     setExpandedMenus(prev =>

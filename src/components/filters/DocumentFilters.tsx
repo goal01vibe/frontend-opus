@@ -74,7 +74,7 @@ export const DocumentFilters = React.memo(function DocumentFilters({ fournisseur
   // Sync quand store reset
   useEffect(() => {
     if (searchTerm === '' && localSearch !== '') setLocalSearch('')
-  }, [searchTerm])
+  }, [searchTerm, localSearch])
 
   const availableFournisseurs = activeType === 'GROSSISTE' ? GROSSISTES : fournisseurs
 
