@@ -15,7 +15,7 @@ import { ConfidenceBadge } from '@/components/common/ConfidenceBadge'
 import { useUIStore } from '@/stores/uiStore'
 import { useFilterStore } from '@/stores/filterStore'
 import type { Document, Extraction } from '@/types'
-import { ArrowUpDown, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
+import { ArrowUpDown, ChevronDown, ChevronUp, AlertTriangle, Thermometer } from 'lucide-react'
 import { ProductBadges } from '@/components/common/ProductBadges'
 
 interface ExtractionsTableProps {
@@ -253,11 +253,21 @@ export function ExtractionsTable({ data, extractions = [], viewMode = 'documents
         accessorKey: 'designation_article',
         header: 'Désignation',
         size: 250,
-        cell: ({ getValue }) => (
-          <span className="truncate block max-w-[250px]" title={getValue() as string}>
-            {getValue() as string}
-          </span>
-        ),
+        cell: ({ row, getValue }) => {
+          const ext = row.original
+          return (
+            <span className="inline-flex items-center gap-1">
+              <span className="truncate max-w-[230px]" title={getValue() as string}>
+                {getValue() as string}
+              </span>
+              {ext.is_cold_chain && (
+                <span title="Produit chaine du froid (conservation 2-8°C)" className="shrink-0">
+                  <Thermometer className="w-[16px] h-[16px] text-blue-500" />
+                </span>
+              )}
+            </span>
+          )
+        },
       },
       {
         accessorKey: 'quantite',

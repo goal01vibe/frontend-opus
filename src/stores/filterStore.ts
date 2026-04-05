@@ -16,6 +16,14 @@ interface FilterStoreState {
   sortOrder: 'asc' | 'desc'
   // Replaced codes filter
   showReplacedOnly: boolean
+  // Filtres attributs produit
+  productFilters: {
+    is_active?: boolean | null
+    is_cold_chain?: boolean | null
+    categorie_produit?: string | null
+    is_stupefiant?: boolean | null
+    taux_remboursement?: string | null
+  }
   // Actions
   setActiveType: (type: FournisseurType) => void
   setSelectedFournisseur: (fournisseur: string | null) => void
@@ -27,6 +35,7 @@ interface FilterStoreState {
   setPerPage: (perPage: number) => void
   setSort: (sortBy: string, sortOrder: 'asc' | 'desc') => void
   setShowReplacedOnly: (show: boolean) => void
+  setProductFilters: (filters: Partial<FilterStoreState['productFilters']>) => void
   resetFilters: () => void
 }
 
@@ -54,6 +63,7 @@ export const useFilterStore = create<FilterStoreState>((set) => ({
   sortBy: 'date_extraction',
   sortOrder: 'desc',
   showReplacedOnly: false,
+  productFilters: {},
 
   setActiveType: (type) => set({ activeType: type, selectedFournisseur: null, page: 1 }),
   setSelectedFournisseur: (fournisseur) => set({ selectedFournisseur: fournisseur, page: 1 }),
@@ -68,12 +78,17 @@ export const useFilterStore = create<FilterStoreState>((set) => ({
   setPerPage: (perPage) => set({ perPage, page: 1 }),
   setSort: (sortBy, sortOrder) => set({ sortBy, sortOrder, page: 1 }),
   setShowReplacedOnly: (show) => set({ showReplacedOnly: show }),
+  setProductFilters: (filters) => set((state) => ({
+    productFilters: { ...state.productFilters, ...filters },
+    page: 1,
+  })),
   resetFilters: () => set({
     filters: defaultFilters,
     searchTerm: '',
     sqlQuery: '',
     selectedFournisseur: null,
     showReplacedOnly: false,
+    productFilters: {},
     page: 1,
   }),
 }))

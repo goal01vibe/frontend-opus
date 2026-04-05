@@ -13,6 +13,12 @@ interface ExtractionsParams {
   search?: string
   sort_by?: string
   sort_order?: string
+  // Filtres attributs produit
+  is_active?: boolean
+  is_cold_chain?: boolean
+  categorie_produit?: string
+  is_stupefiant?: boolean
+  taux_remboursement?: string
 }
 
 interface ExtractionsApiResponse {

@@ -99,6 +99,7 @@ export interface Extraction {
   replaced_by?: string | null
   replaced_by_denomination?: string | null
   retired_date?: string | null
+  is_cold_chain?: boolean
   // Document metadata (returned by GET /extractions)
   document_name?: string
   numero_facture?: string

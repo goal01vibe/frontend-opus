@@ -56,6 +56,7 @@ export function Extractions() {
     activeType, selectedFournisseur, searchTerm, filters,
     page, perPage, sortBy, sortOrder,
     setPage, setPerPage, setSearchTerm,
+    productFilters,
   } = useFilterStore()
   const [viewMode, setViewMode] = useState<ViewMode>('documents')
   const [showNonEnriched, setShowNonEnriched] = useState(false)
@@ -90,7 +91,7 @@ export function Extractions() {
   // Reset lines page when filters change
   useEffect(() => {
     setLinesPage(1)
-  }, [activeType, searchTerm, selectedFournisseur])
+  }, [activeType, searchTerm, selectedFournisseur, productFilters])
 
   // Build query params from store state
   const queryParams = {
@@ -119,6 +120,12 @@ export function Extractions() {
     limit: linesPerPage,
     categorie_fournisseur: activeType,
     search: searchTerm || undefined,
+    // Filtres attributs produit (seulement si définis)
+    ...(productFilters.is_active !== undefined && productFilters.is_active !== null && { is_active: productFilters.is_active }),
+    ...(productFilters.is_cold_chain !== undefined && productFilters.is_cold_chain !== null && { is_cold_chain: productFilters.is_cold_chain }),
+    ...(productFilters.categorie_produit && { categorie_produit: productFilters.categorie_produit }),
+    ...(productFilters.is_stupefiant !== undefined && productFilters.is_stupefiant !== null && { is_stupefiant: productFilters.is_stupefiant }),
+    ...(productFilters.taux_remboursement && { taux_remboursement: productFilters.taux_remboursement }),
   }
 
   // Fetch extractions for lines view (server-side pagination)
@@ -174,13 +181,18 @@ export function Extractions() {
         limit: linesPerPage,
         categorie_fournisseur: activeType,
         search: searchTerm || undefined,
+        ...(productFilters.is_active !== undefined && productFilters.is_active !== null && { is_active: productFilters.is_active }),
+        ...(productFilters.is_cold_chain !== undefined && productFilters.is_cold_chain !== null && { is_cold_chain: productFilters.is_cold_chain }),
+        ...(productFilters.categorie_produit && { categorie_produit: productFilters.categorie_produit }),
+        ...(productFilters.is_stupefiant !== undefined && productFilters.is_stupefiant !== null && { is_stupefiant: productFilters.is_stupefiant }),
+        ...(productFilters.taux_remboursement && { taux_remboursement: productFilters.taux_remboursement }),
       }
       queryClient.prefetchQuery({
         queryKey: ['extractions', nextParams],
         queryFn: () => extractionsService.getAll(nextParams),
       })
     }
-  }, [linesPage, linesPerPage, extractionsTotalCount, viewMode, activeType, searchTerm, queryClient])
+  }, [linesPage, linesPerPage, extractionsTotalCount, viewMode, activeType, searchTerm, productFilters, queryClient])
 
   // Tab counts from server aggregations
   const counts = {

@@ -17,6 +17,8 @@ export function DocumentFilters({ fournisseurs = [] }: DocumentFiltersProps) {
     filters,
     setFilters,
     resetFilters,
+    productFilters,
+    setProductFilters,
   } = useFilterStore()
 
   const [localSearch, setLocalSearch] = useState(searchTerm)
@@ -40,7 +42,11 @@ export function DocumentFilters({ fournisseurs = [] }: DocumentFiltersProps) {
 
   const availableFournisseurs = activeType === 'GROSSISTE' ? GROSSISTES : fournisseurs
 
-  const hasActiveFilters = searchTerm || selectedFournisseur || filters.status?.length || filters.dateRange
+  const hasActiveFilters = searchTerm || selectedFournisseur || filters.status?.length || filters.dateRange ||
+    productFilters.categorie_produit || productFilters.taux_remboursement ||
+    (productFilters.is_active !== undefined && productFilters.is_active !== null) ||
+    (productFilters.is_cold_chain !== undefined && productFilters.is_cold_chain !== null) ||
+    (productFilters.is_stupefiant !== undefined && productFilters.is_stupefiant !== null)
 
   return (
     <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
@@ -86,6 +92,71 @@ export function DocumentFilters({ fournisseurs = [] }: DocumentFiltersProps) {
             <option value="NEEDS_REVIEW">À valider</option>
             <option value="FAILED">Erreur</option>
             <option value="AUTO_PROCESSED">Auto</option>
+          </select>
+
+          {/* Filtres produit */}
+          <select
+            value={productFilters.categorie_produit || ''}
+            onChange={(e) => setProductFilters({ categorie_produit: e.target.value || null })}
+            className="px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-blue-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition shadow-sm"
+          >
+            <option value="">Catégorie produit</option>
+            <option value="MEDICAMENT">Médicament</option>
+            <option value="LPP">LPP</option>
+            <option value="PARAPHARMACIE">Parapharmacie</option>
+            <option value="AUTRES">Autres</option>
+          </select>
+
+          <select
+            value={productFilters.taux_remboursement || ''}
+            onChange={(e) => setProductFilters({ taux_remboursement: e.target.value || null })}
+            className="px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-blue-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition shadow-sm"
+          >
+            <option value="">Taux remb.</option>
+            <option value="100%">100%</option>
+            <option value="65%">65%</option>
+            <option value="30%">30%</option>
+            <option value="15%">15%</option>
+            <option value="NR">Non remb.</option>
+          </select>
+
+          <select
+            value={productFilters.is_active === null || productFilters.is_active === undefined ? '' : productFilters.is_active ? 'active' : 'inactive'}
+            onChange={(e) => {
+              const v = e.target.value
+              setProductFilters({ is_active: v === 'active' ? true : v === 'inactive' ? false : null })
+            }}
+            className="px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-blue-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition shadow-sm"
+          >
+            <option value="">Statut produit</option>
+            <option value="active">Actif</option>
+            <option value="inactive">Retiré / Remplacé</option>
+          </select>
+
+          <select
+            value={productFilters.is_cold_chain === null || productFilters.is_cold_chain === undefined ? '' : productFilters.is_cold_chain ? 'yes' : 'no'}
+            onChange={(e) => {
+              const v = e.target.value
+              setProductFilters({ is_cold_chain: v === 'yes' ? true : v === 'no' ? false : null })
+            }}
+            className="px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-blue-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition shadow-sm"
+          >
+            <option value="">Chaîne du froid</option>
+            <option value="yes">Oui 🌡️</option>
+            <option value="no">Non</option>
+          </select>
+
+          <select
+            value={productFilters.is_stupefiant === null || productFilters.is_stupefiant === undefined ? '' : productFilters.is_stupefiant ? 'yes' : 'no'}
+            onChange={(e) => {
+              const v = e.target.value
+              setProductFilters({ is_stupefiant: v === 'yes' ? true : v === 'no' ? false : null })
+            }}
+            className="px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-blue-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition shadow-sm"
+          >
+            <option value="">Stupéfiant</option>
+            <option value="yes">Oui</option>
+            <option value="no">Non</option>
           </select>
 
           {/* Date Range Filter */}
@@ -169,6 +240,46 @@ export function DocumentFilters({ fournisseurs = [] }: DocumentFiltersProps) {
             <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">
               {filters.dateRange.from ? filters.dateRange.from.toISOString().split('T')[0] : '...'} → {filters.dateRange.to ? filters.dateRange.to.toISOString().split('T')[0] : '...'}
               <button onClick={() => setFilters({ dateRange: undefined })}>
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+          {productFilters.categorie_produit && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs">
+              {productFilters.categorie_produit}
+              <button onClick={() => setProductFilters({ categorie_produit: null })}>
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+          {productFilters.taux_remboursement && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-teal-100 text-teal-700 rounded-full text-xs">
+              Remb: {productFilters.taux_remboursement}
+              <button onClick={() => setProductFilters({ taux_remboursement: null })}>
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+          {productFilters.is_active === false && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs">
+              Retirés / Remplacés
+              <button onClick={() => setProductFilters({ is_active: null })}>
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+          {productFilters.is_cold_chain === true && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
+              🌡️ Chaîne du froid
+              <button onClick={() => setProductFilters({ is_cold_chain: null })}>
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+          {productFilters.is_stupefiant === true && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs">
+              Stupéfiant
+              <button onClick={() => setProductFilters({ is_stupefiant: null })}>
                 <X className="w-3 h-3" />
               </button>
             </span>
