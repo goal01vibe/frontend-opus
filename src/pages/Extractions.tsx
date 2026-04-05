@@ -121,7 +121,8 @@ export function Extractions() {
     categorie_fournisseur: activeType,
     search: searchTerm || undefined,
     // Filtres attributs produit (seulement si définis)
-    ...(productFilters.is_active !== undefined && productFilters.is_active !== null && { is_active: productFilters.is_active }),
+    // showReplacedCodes force is_active=false côté serveur (pas de filtre client-side)
+    ...(showReplacedCodes ? { is_active: false } : (productFilters.is_active !== undefined && productFilters.is_active !== null && { is_active: productFilters.is_active })),
     ...(productFilters.is_cold_chain !== undefined && productFilters.is_cold_chain !== null && { is_cold_chain: productFilters.is_cold_chain }),
     ...(productFilters.categorie_produit && { categorie_produit: productFilters.categorie_produit }),
     ...(productFilters.is_stupefiant !== undefined && productFilters.is_stupefiant !== null && { is_stupefiant: productFilters.is_stupefiant }),
@@ -143,10 +144,8 @@ export function Extractions() {
   const rawExtractions = extractionsData?.extractions || []
   const extractionsTotalCount = extractionsData?.total_count || 0
 
-  // Filter extractions for replaced codes view
-  const allExtractions = showReplacedCodes
-    ? rawExtractions.filter(ext => ext.is_active === false || !!ext.replaced_by)
-    : rawExtractions
+  // Replaced codes: filtre serveur via is_active=false dans extractionsParams
+  const allExtractions = rawExtractions
 
   // Prefetch next page of documents
   useEffect(() => {
