@@ -58,14 +58,9 @@ export function useKeyboardShortcuts() {
         navigate('/fournisseurs')
       }
 
-      // Help - ?
+      // Help - ? (no-op for now)
       if (e.key === '?' && !isMod) {
-        // Could show help modal
-        console.log('Keyboard shortcuts:')
-        console.log('Ctrl+K: Search')
-        console.log('Ctrl+E: Export')
-        console.log('Ctrl+1/2/3: Navigate')
-        console.log('Escape: Close')
+        // TODO: show help modal
       }
     }
 

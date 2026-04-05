@@ -23,7 +23,7 @@ export function useBatchProgress(batchId: string | null, options: UseBatchProgre
 
     // Événement de connexion établie
     eventSource.addEventListener('connected', () => {
-      console.log('SSE batch progress connecté')
+      // SSE connected
     })
 
     // Événement de début de traitement d'un fichier
@@ -93,8 +93,7 @@ export function useBatchProgress(batchId: string | null, options: UseBatchProgre
     // Événement de fin de batch
     eventSource.addEventListener('batch_complete', (e) => {
       try {
-        const data = JSON.parse((e as MessageEvent).data)
-        console.log('Batch terminé:', data)
+        JSON.parse((e as MessageEvent).data)
       } catch {
         // Ignore parse errors
       }

@@ -15,7 +15,7 @@ import {
 import { cn } from '@/lib/utils'
 import { templatesService } from '@/services/templates'
 
-export function AdminTemplateManager() {
+function AdminTemplateManager() {
   const queryClient = useQueryClient()
 
   const { data: templates = [], isLoading } = useQuery({
@@ -216,3 +216,6 @@ export function AdminTemplateManager() {
     </div>
   )
 }
+
+export default AdminTemplateManager
+export { AdminTemplateManager }

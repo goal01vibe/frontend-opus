@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react'
+import React, { useMemo, useState, useCallback } from 'react'
 import ReactDOM from 'react-dom'
 import {
   useReactTable,
@@ -134,7 +134,7 @@ interface ExtractionsTableProps {
   isLoading?: boolean
 }
 
-export function ExtractionsTable({ data, extractions = [], viewMode = 'documents', isLoading }: ExtractionsTableProps) {
+export const ExtractionsTable = React.memo(function ExtractionsTable({ data, extractions = [], viewMode = 'documents', isLoading }: ExtractionsTableProps) {
   const { sortBy, sortOrder, setSort } = useFilterStore()
 
   // Convert store sort to TanStack SortingState
@@ -596,4 +596,4 @@ export function ExtractionsTable({ data, extractions = [], viewMode = 'documents
       )}
     </div>
   )
-}
+})

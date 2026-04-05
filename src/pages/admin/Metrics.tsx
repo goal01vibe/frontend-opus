@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { adminService } from '@/services/admin'
 import { documentsService } from '@/services/documents'
 
-export function AdminMetrics() {
+function AdminMetrics() {
   // Fetch performance metrics from API
   const { data: metrics, isLoading: metricsLoading } = useQuery({
     queryKey: ['admin-metrics'],
@@ -259,3 +259,6 @@ export function AdminMetrics() {
     </div>
   )
 }
+
+export default AdminMetrics
+export { AdminMetrics }

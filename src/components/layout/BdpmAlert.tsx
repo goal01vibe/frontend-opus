@@ -1,34 +1,20 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, X } from 'lucide-react'
 import { bdpmService, type BdpmStatus } from '@/services/bdpm'
 
 export function BdpmAlert() {
-  const [status, setStatus] = useState<BdpmStatus | null>(null)
   const [dismissed, setDismissed] = useState(false)
-  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const checkStatus = async () => {
-      try {
-        const data = await bdpmService.getStatus()
-        setStatus(data)
-      } catch (err) {
-        // Silently fail - don't show error if BDPM check fails
-        console.warn('BDPM status check failed:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    checkStatus()
-
-    // Re-check once per day (24h)
-    const interval = setInterval(checkStatus, 24 * 60 * 60 * 1000)
-    return () => clearInterval(interval)
-  }, [])
+  const { data: status, isLoading } = useQuery<BdpmStatus>({
+    queryKey: ['bdpm-status'],
+    queryFn: () => bdpmService.getStatus(),
+    refetchInterval: 24 * 60 * 60 * 1000, // 1 fois par jour
+    staleTime: 60 * 60 * 1000, // 1h
+  })
 
   // Don't show anything while loading or if dismissed
-  if (loading || dismissed) return null
+  if (isLoading || dismissed) return null
 
   // Don't show if no error
   if (!status?.has_error) return null

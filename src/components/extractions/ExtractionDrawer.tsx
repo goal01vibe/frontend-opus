@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Document, Page, pdfjs } from 'react-pdf'
 import {
   X,
@@ -28,7 +29,7 @@ import { ProductSummary } from '@/components/common/ProductBadges'
 import { useUIStore } from '@/stores/uiStore'
 import { documentsService } from '@/services/documents'
 import { extractionsService } from '@/services/extractions'
-import type { Document as DocumentType, Extraction } from '@/types'
+import type { Document as DocumentType } from '@/types'
 
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
@@ -49,24 +50,20 @@ export function ExtractionDrawer({ document, isOpen }: ExtractionDrawerProps) {
   const [pdfError, setPdfError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'info' | 'pdf'>('info')
   const [splitView, setSplitView] = useState<boolean>(false)
-  const [extractions, setExtractions] = useState<Extraction[]>([])
-
   // Reset state when document changes
   useEffect(() => {
     setPageNumber(1)
     setScale(0.8)
     setPdfError(null)
-    setExtractions([])
   }, [document?.id])
 
-  // Load extractions for BDPM summary
-  useEffect(() => {
-    if (document?.id && isOpen) {
-      extractionsService.getByDocumentId(document.id)
-        .then(setExtractions)
-        .catch(console.error)
-    }
-  }, [document?.id, isOpen])
+  // Load extractions for BDPM summary via React Query
+  const { data: extractions = [] } = useQuery({
+    queryKey: ['extractions-by-doc', document?.id],
+    queryFn: () => extractionsService.getByDocumentId(document!.id),
+    enabled: isOpen && !!document?.id,
+    staleTime: 30_000,
+  })
 
   if (!document) return null
 

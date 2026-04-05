@@ -22,7 +22,7 @@ import { batchService, type BatchHistoryItem, type BatchDocument } from '@/servi
 import { formatDistanceToNow, format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
-export function AdminBatches() {
+function AdminBatches() {
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null)
 
   // Historique des batchs
@@ -326,3 +326,6 @@ export function AdminBatches() {
     </div>
   )
 }
+
+export default AdminBatches
+export { AdminBatches }

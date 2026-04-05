@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import { Search, SlidersHorizontal, X, Calendar, RotateCcw } from 'lucide-react'
 import { useFilterStore } from '@/stores/filterStore'
@@ -46,7 +46,7 @@ function FilterSelect({
 // ===========================================================================
 // DocumentFilters — barre compacte + popover structuré
 // ===========================================================================
-export function DocumentFilters({ fournisseurs = [], actions }: DocumentFiltersProps) {
+export const DocumentFilters = React.memo(function DocumentFilters({ fournisseurs = [], actions }: DocumentFiltersProps) {
   const {
     searchTerm,
     setSearchTerm,
@@ -423,4 +423,4 @@ export function DocumentFilters({ fournisseurs = [], actions }: DocumentFiltersP
       )}
     </div>
   )
-}
+})

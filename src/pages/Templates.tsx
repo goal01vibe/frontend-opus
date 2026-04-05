@@ -3,7 +3,7 @@ import { Puzzle, CheckCircle, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { templatesService } from '@/services/templates'
 
-export function Templates() {
+function Templates() {
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['templates'],
     queryFn: templatesService.getAll,
@@ -106,3 +106,6 @@ export function Templates() {
     </div>
   )
 }
+
+export default Templates
+export { Templates }

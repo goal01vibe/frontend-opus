@@ -1,16 +1,26 @@
+import React, { Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Layout } from '@/components/layout/Layout'
-import { Dashboard } from '@/pages/Dashboard'
-import { Extractions } from '@/pages/Extractions'
-import { Fournisseurs } from '@/pages/Fournisseurs'
-import { Templates } from '@/pages/Templates'
-import { Export } from '@/pages/Export'
-import { AdminLogs } from '@/pages/admin/Logs'
-import { AdminWorkers } from '@/pages/admin/Workers'
-import { AdminMetrics } from '@/pages/admin/Metrics'
-import { AdminTemplateManager } from '@/pages/admin/TemplateManager'
-import { AdminBatches } from '@/pages/admin/Batches'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { Loader2 } from 'lucide-react'
+
+// Lazy-loaded pages (code splitting)
+const Dashboard = React.lazy(() => import('./pages/Dashboard'))
+const Extractions = React.lazy(() => import('./pages/Extractions'))
+const Fournisseurs = React.lazy(() => import('./pages/Fournisseurs'))
+const Templates = React.lazy(() => import('./pages/Templates'))
+const Export = React.lazy(() => import('./pages/Export'))
+const AdminLogs = React.lazy(() => import('./pages/admin/Logs'))
+const AdminWorkers = React.lazy(() => import('./pages/admin/Workers'))
+const AdminMetrics = React.lazy(() => import('./pages/admin/Metrics'))
+const AdminTemplateManager = React.lazy(() => import('./pages/admin/TemplateManager'))
+const AdminBatches = React.lazy(() => import('./pages/admin/Batches'))
+
+const PageLoader = (
+  <div className="flex items-center justify-center h-full">
+    <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+  </div>
+)
 
 function App() {
   useKeyboardShortcuts()
@@ -18,20 +28,20 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<Layout />}>
-        <Route index element={<Dashboard />} />
-        <Route path="extractions" element={<Extractions />} />
-        <Route path="fournisseurs" element={<Fournisseurs />} />
-        <Route path="templates" element={<Templates />} />
-        <Route path="export" element={<Export />} />
+        <Route index element={<Suspense fallback={PageLoader}><Dashboard /></Suspense>} />
+        <Route path="extractions" element={<Suspense fallback={PageLoader}><Extractions /></Suspense>} />
+        <Route path="fournisseurs" element={<Suspense fallback={PageLoader}><Fournisseurs /></Suspense>} />
+        <Route path="templates" element={<Suspense fallback={PageLoader}><Templates /></Suspense>} />
+        <Route path="export" element={<Suspense fallback={PageLoader}><Export /></Suspense>} />
 
         {/* Admin Routes */}
         <Route path="admin">
           <Route index element={<Navigate to="/admin/logs" replace />} />
-          <Route path="logs" element={<AdminLogs />} />
-          <Route path="workers" element={<AdminWorkers />} />
-          <Route path="metrics" element={<AdminMetrics />} />
-          <Route path="templates" element={<AdminTemplateManager />} />
-          <Route path="batches" element={<AdminBatches />} />
+          <Route path="logs" element={<Suspense fallback={PageLoader}><AdminLogs /></Suspense>} />
+          <Route path="workers" element={<Suspense fallback={PageLoader}><AdminWorkers /></Suspense>} />
+          <Route path="metrics" element={<Suspense fallback={PageLoader}><AdminMetrics /></Suspense>} />
+          <Route path="templates" element={<Suspense fallback={PageLoader}><AdminTemplateManager /></Suspense>} />
+          <Route path="batches" element={<Suspense fallback={PageLoader}><AdminBatches /></Suspense>} />
         </Route>
 
         {/* Catch all - redirect to dashboard */}

@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/utils'
 import { documentsService } from '@/services/documents'
 
-export function Fournisseurs() {
+function Fournisseurs() {
   const { data: docsData, isLoading } = useQuery({
     queryKey: ['documents-fournisseurs'],
     queryFn: () => documentsService.getAll({ limit: 1000 }),
@@ -167,3 +167,6 @@ export function Fournisseurs() {
     </div>
   )
 }
+
+export default Fournisseurs
+export { Fournisseurs }

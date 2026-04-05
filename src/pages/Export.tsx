@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { FileDown, FileSpreadsheet, FileJson, Calendar, Filter, Download } from 'lucide-react'
 
-export function Export() {
+function Export() {
   const [format, setFormat] = useState<'csv' | 'xlsx' | 'json'>('xlsx')
   const [dateRange, setDateRange] = useState<'today' | '7days' | '30days' | 'all'>('30days')
   const [includeDetails, setIncludeDetails] = useState(true)
@@ -123,3 +123,6 @@ export function Export() {
     </div>
   )
 }
+
+export default Export
+export { Export }

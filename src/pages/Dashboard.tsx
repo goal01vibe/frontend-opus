@@ -11,7 +11,7 @@ import { adminService } from '@/services/admin'
 import { documentsService } from '@/services/documents'
 import { RefreshCw } from 'lucide-react'
 
-export function Dashboard() {
+function Dashboard() {
   // Fetch real stats from API
   const { data: stats, isLoading: statsLoading, refetch } = useQuery({
     queryKey: ['admin-stats'],
@@ -258,3 +258,6 @@ export function Dashboard() {
     </div>
   )
 }
+
+export default Dashboard
+export { Dashboard }

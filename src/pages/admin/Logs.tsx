@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import { adminService } from '@/services/admin'
 import type { LogEntry } from '@/types'
 
-export function AdminLogs() {
+function AdminLogs() {
   const [isPaused, setIsPaused] = useState(false)
   const [levelFilter, setLevelFilter] = useState<string>('INFO')
   const [sourceFilter, setSourceFilter] = useState<string>('all')
@@ -184,3 +184,6 @@ export function AdminLogs() {
     </div>
   )
 }
+
+export default AdminLogs
+export { AdminLogs }

@@ -18,6 +18,30 @@ import type { Document as DocumentType, Extraction } from '@/types'
 
 type ViewMode = 'documents' | 'lines'
 
+function buildDocQueryParams(
+  page: number,
+  perPage: number,
+  activeType: string,
+  selectedFournisseur: string | null,
+  filters: { status?: string[]; dateRange?: { from?: Date; to?: Date } },
+  searchTerm: string,
+  sortBy: string,
+  sortOrder: string,
+) {
+  return {
+    offset: (page - 1) * perPage,
+    limit: perPage,
+    categorie_fournisseur: activeType,
+    fournisseur: selectedFournisseur || undefined,
+    status: filters.status?.[0] || undefined,
+    search: searchTerm || undefined,
+    sort_by: sortBy,
+    sort_order: sortOrder,
+    date_from: filters.dateRange?.from ? filters.dateRange.from.toISOString().split('T')[0] : undefined,
+    date_to: filters.dateRange?.to ? filters.dateRange.to.toISOString().split('T')[0] : undefined,
+  }
+}
+
 function buildDocumentFromExtraction(ext: Extraction | undefined): DocumentType | null {
   if (!ext) return null
   return {
@@ -50,7 +74,7 @@ function buildDocumentFromExtraction(ext: Extraction | undefined): DocumentType 
   } as DocumentType
 }
 
-export function Extractions() {
+function Extractions() {
   const { drawerOpen, selectedId } = useUIStore()
   const {
     activeType, selectedFournisseur, searchTerm, filters,
@@ -94,18 +118,7 @@ export function Extractions() {
   }, [activeType, searchTerm, selectedFournisseur, productFilters])
 
   // Build query params from store state
-  const queryParams = {
-    offset: (page - 1) * perPage,
-    limit: perPage,
-    categorie_fournisseur: activeType,
-    fournisseur: selectedFournisseur || undefined,
-    status: filters.status?.[0] || undefined,
-    search: searchTerm || undefined,
-    sort_by: sortBy,
-    sort_order: sortOrder,
-    date_from: filters.dateRange?.from ? filters.dateRange.from.toISOString().split('T')[0] : undefined,
-    date_to: filters.dateRange?.to ? filters.dateRange.to.toISOString().split('T')[0] : undefined,
-  }
+  const queryParams = buildDocQueryParams(page, perPage, activeType, selectedFournisseur, filters, searchTerm, sortBy, sortOrder)
 
   // Fetch documents from API (server-side pagination)
   const { data: serverResponse, isLoading: loadingDocs } = useQuery({
@@ -154,18 +167,7 @@ export function Extractions() {
   useEffect(() => {
     const totalPages = Math.ceil(totalCount / perPage)
     if (page < totalPages) {
-      const nextParams = {
-        offset: page * perPage,
-        limit: perPage,
-        categorie_fournisseur: activeType,
-        fournisseur: selectedFournisseur || undefined,
-        status: filters.status?.[0] || undefined,
-        search: searchTerm || undefined,
-        sort_by: sortBy,
-        sort_order: sortOrder,
-        date_from: filters.dateRange?.from ? filters.dateRange.from.toISOString().split('T')[0] : undefined,
-        date_to: filters.dateRange?.to ? filters.dateRange.to.toISOString().split('T')[0] : undefined,
-      }
+      const nextParams = buildDocQueryParams(page + 1, perPage, activeType, selectedFournisseur, filters, searchTerm, sortBy, sortOrder)
       queryClient.prefetchQuery({
         queryKey: ['documents', nextParams],
         queryFn: () => documentsService.getAll(nextParams),
@@ -431,3 +433,6 @@ export function Extractions() {
     </div>
   )
 }
+
+export default Extractions
+export { Extractions }

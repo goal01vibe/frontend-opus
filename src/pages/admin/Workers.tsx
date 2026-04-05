@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import { adminService } from '@/services/admin'
 import type { CeleryWorker } from '@/types'
 
-export function AdminWorkers() {
+function AdminWorkers() {
   const { data: workers = [], isLoading, refetch } = useQuery({
     queryKey: ['workers'],
     queryFn: adminService.getWorkers,
@@ -204,3 +204,6 @@ export function AdminWorkers() {
     </div>
   )
 }
+
+export default AdminWorkers
+export { AdminWorkers }

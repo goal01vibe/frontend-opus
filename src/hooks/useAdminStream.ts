@@ -82,6 +82,16 @@ export function useAdminStream(options: UseAdminStreamOptions = {}) {
   const eventSourceRef = useRef<EventSource | null>(null)
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Stabilize callbacks via refs to avoid reconnection loops
+  const onWorkerUpdateRef = useRef(onWorkerUpdate)
+  onWorkerUpdateRef.current = onWorkerUpdate
+  const onMetricsUpdateRef = useRef(onMetricsUpdate)
+  onMetricsUpdateRef.current = onMetricsUpdate
+  const onBatchProgressRef = useRef(onBatchProgress)
+  onBatchProgressRef.current = onBatchProgress
+  const onBatchCompleteRef = useRef(onBatchComplete)
+  onBatchCompleteRef.current = onBatchComplete
+
   const connect = useCallback(() => {
     // Éviter les connexions multiples
     if (eventSourceRef.current?.readyState === EventSource.OPEN) {
@@ -113,7 +123,7 @@ export function useAdminStream(options: UseAdminStreamOptions = {}) {
           workers: data.workers,
           lastUpdate: data.timestamp,
         }))
-        onWorkerUpdate?.(data)
+        onWorkerUpdateRef.current?.(data)
       } catch (err) {
         console.error('Error parsing workers_update:', err)
       }
@@ -128,7 +138,7 @@ export function useAdminStream(options: UseAdminStreamOptions = {}) {
           metrics: data,
           lastUpdate: data.timestamp,
         }))
-        onMetricsUpdate?.(data)
+        onMetricsUpdateRef.current?.(data)
       } catch (err) {
         console.error('Error parsing metrics_update:', err)
       }
@@ -148,7 +158,7 @@ export function useAdminStream(options: UseAdminStreamOptions = {}) {
 
             // Si batch terminé, déclencher callback
             if (data.type === 'batch_complete') {
-              onBatchComplete?.(batchId)
+              onBatchCompleteRef.current?.(batchId)
             }
           }
 
@@ -158,7 +168,7 @@ export function useAdminStream(options: UseAdminStreamOptions = {}) {
             lastUpdate: new Date().toISOString(),
           }
         })
-        onBatchProgress?.(data)
+        onBatchProgressRef.current?.(data)
       } catch (err) {
         console.error('Error parsing batch_progress:', err)
       }
@@ -180,7 +190,7 @@ export function useAdminStream(options: UseAdminStreamOptions = {}) {
         }, reconnectDelay)
       }
     }
-  }, [onWorkerUpdate, onMetricsUpdate, onBatchProgress, onBatchComplete, autoReconnect, reconnectDelay])
+  }, [autoReconnect, reconnectDelay])
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
