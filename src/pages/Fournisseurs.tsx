@@ -1,45 +1,27 @@
-import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Building2, TrendingUp, FileText, ArrowUpRight, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/utils'
-import { documentsService } from '@/services/documents'
+import api from '@/services/api'
+
+interface FournisseurStat {
+  name: string
+  type: string
+  count: number
+  amount: number
+  lastDate: string
+}
 
 function Fournisseurs() {
-  const { data: docsData, isLoading } = useQuery({
-    queryKey: ['documents-fournisseurs'],
-    queryFn: () => documentsService.getAll({ limit: 1000 }),
+  const { data, isLoading } = useQuery({
+    queryKey: ['fournisseurs-stats'],
+    queryFn: async () => {
+      const response = await api.get<{ fournisseurs: FournisseurStat[] }>('/fournisseurs/stats')
+      return response.data
+    },
   })
 
-  const documents = docsData?.documents || []
-
-  // Aggregate by fournisseur
-  const fournisseurs = useMemo(() => {
-    const map = new Map<
-      string,
-      { name: string; type: string; count: number; amount: number; lastDate: string }
-    >()
-
-    documents.forEach((doc) => {
-      const existing = map.get(doc.fournisseur) || {
-        name: doc.fournisseur,
-        type: doc.categorie_fournisseur,
-        count: 0,
-        amount: 0,
-        lastDate: doc.date_document,
-      }
-
-      existing.count += 1
-      existing.amount += doc.net_a_payer
-      if (doc.date_document > existing.lastDate) {
-        existing.lastDate = doc.date_document
-      }
-
-      map.set(doc.fournisseur, existing)
-    })
-
-    return Array.from(map.values()).sort((a, b) => b.amount - a.amount)
-  }, [documents])
+  const fournisseurs = data?.fournisseurs ?? []
 
   const grossistes = fournisseurs.filter((f) => f.type === 'GROSSISTE')
   const labos = fournisseurs.filter((f) => f.type === 'LABO')
